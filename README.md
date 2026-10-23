@@ -1,11 +1,11 @@
 # WCH_PAD
 
-基于 CH582M 的三模（USB / BLE / 2.4G）无线键盘 + CH592 接收器。
+基于 CH582M 的三模（USB / BLE / 2.4G）无线键盘 + CH591D 接收器。
 
 ## 项目结构
 
-- `CH582_VIAL_KBD/` — 键盘端（CH582 MCU），支持 USB / BLE / 2.4G 三种模式
-- `dongle_591D/` — 2.4G 接收器端（CH592 MCU），USB HID 设备
+- `CH582_VIAL_KBD/` — 键盘端（CH582M MCU），支持 USB / BLE / 2.4G 三种模式
+- `dongle_591D/` — 2.4G 接收器端（CH591D MCU），USB HID 设备
 
 ## 声明
 
