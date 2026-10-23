@@ -9,6 +9,17 @@
 #include "scan_key.h"
 #include "ws2812.h"
 #include "VIAL.h"
+
+/* 2.4G status LED layout */
+#define RF_LED_COUNT            17
+#define RF_LED_LAST             (RF_LED_COUNT - 1)
+#define RF_LED_REFRESH_MS       125
+#define RF_LED_BLINK_HALF_MS    250
+#define RF_LINK_LOST_LIMIT      100
+
+#define RF_LED_YELLOW           0x080800
+#define RF_LED_RED              0x080000
+#define RF_LED_BLUE             0x000008
 /*********************************************************************
  * GLOBAL TYPEDEFS
  */
@@ -326,29 +337,34 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
     }
     if(events & WS2812_EVENT)
     {
-        static __attribute__((aligned(4))) uint32_t led_buf[17];
-        static uint8_t blink_tick = 0;
-        uint32_t status_color, base_color;
-        blink_tick++;
-        if (blink_tick >= 2) {
-            blink_tick = 0;
-            rf_led_blink_state = !rf_led_blink_state;
-        }
+        static __attribute__((aligned(4))) uint32_t led_buf[RF_LED_COUNT];
+        uint32_t base_color = RF_LED_YELLOW;
+        uint32_t status_color = 0;
+        uint8_t  led_on;
+
+        /* 2 Hz blink: 250 ms on, 250 ms off, phase locked to the system clock */
+        led_on = (uint8_t)(((TMOS_GetSystemClock() / MS1_TO_SYSTEM_TIME(RF_LED_BLINK_HALF_MS)) & 1) == 0);
+        rf_led_blink_state = led_on;
+
         if (rf_pairing_mode) {
-            base_color = 0x080800;
-            status_color = rf_led_blink_state ? 0x000008 : 0x000000;
-        } else if (RF_Bounding_flag && rf_lost_count < 100) {
-            base_color = 0x080800;
-            status_color = 0x080800;
+            /* Pairing: LEDs 1-16 yellow, last LED blue 2 Hz */
+            status_color = led_on ? RF_LED_BLUE : 0;
+        } else if (RF_Bounding_flag && rf_lost_count < RF_LINK_LOST_LIMIT) {
+            /* Connected: all 17 yellow solid */
+            status_color = RF_LED_YELLOW;
         } else {
-            base_color = 0x080800;
-            status_color = rf_led_blink_state ? 0x080000 : 0x000000;
+            /* Paired but not connected / not paired: LEDs 1-16 yellow, last LED red 2 Hz */
+            status_color = led_on ? RF_LED_RED : 0;
         }
-        for (int i = 0; i < 17; i++) led_buf[i] = base_color;
-        led_buf[16] = status_color;
-        process_RGB_to_pwm(led_buf, 17, Pwmout_buf);
-        PWM_DATA_DMA_send(Pwmout_buf,sizeof(Pwmout_buf));
-        tmos_start_task(RF_taskID, WS2812_EVENT, MS1_TO_SYSTEM_TIME(125));
+
+        for (uint8_t i = 0; i < RF_LED_COUNT; i++) {
+            led_buf[i] = base_color;
+        }
+        led_buf[RF_LED_LAST] = status_color;
+
+        process_RGB_to_pwm(led_buf, RF_LED_COUNT, Pwmout_buf);
+        PWM_DATA_DMA_send(Pwmout_buf, WS2812_PWM_WORDS);
+        tmos_start_task(RF_taskID, WS2812_EVENT, MS1_TO_SYSTEM_TIME(RF_LED_REFRESH_MS));
         return (events ^ WS2812_EVENT);
     }
 

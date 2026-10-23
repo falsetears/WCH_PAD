@@ -395,7 +395,7 @@ uint16_t HidEmu_ProcessEvent(uint8_t task_id, uint16_t events)
     {
        process_RGB_to_pwm(flowing_buf, 17, Pwmout_buf);
        Ws2812_move_control(flowing_buf,RGB_Left_flowing_water,17);//Ä£Ê½Ñ¡Ôñ
-       PWM_DATA_DMA_send(Pwmout_buf,sizeof(Pwmout_buf));
+       PWM_DATA_DMA_send(Pwmout_buf, WS2812_PWM_WORDS);
        tmos_start_task(hidEmuTaskId, WS2812_EVENT, MS1_TO_SYSTEM_TIME(160));
        return (events ^ WS2812_EVENT);
     }
