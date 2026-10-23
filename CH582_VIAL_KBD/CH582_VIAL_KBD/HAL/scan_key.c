@@ -3,7 +3,7 @@
  * Author             : WCH.yz
  * Version            : V1.0
  * Date               : 2024/11/19
- * Description        : ¼üÅÌÉ¨¼ü²ã
+ * Description        : ï¿½ï¿½ï¿½ï¿½É¨ï¿½ï¿½ï¿½ï¿½
  *********************************************************************************
  * Copyright (c) 2021 Nanjing Qinheng Microelectronics Co., Ltd.
  * Attention: This software (modified or not) and binary are used for
@@ -15,7 +15,7 @@
 #include "hiddev.h"
 #include "VIAL.h"
 
-// ASCIIµ½HID¼üÂëµÄÓ³Éä±í£¨²¿·Ö£©
+// ASCIIï¿½ï¿½HIDï¿½ï¿½ï¿½ï¿½ï¿½Ó³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö£ï¿½
 typedef struct {
     char ascii;
     unsigned char hid_code;
@@ -58,21 +58,21 @@ AsciiToHidMapping asciiToHidMap[] = {
     {'8', HID_KEYBOARD_8},
     {'9', HID_KEYBOARD_9},
     {'0', HID_KEYBOARD_0},
-    {'\n', HID_KEYBOARD_RETURN}, // ¼ÙÉè»»ÐÐ·û±íÊ¾»Ø³µ¼ü
+    {'\n', HID_KEYBOARD_RETURN}, // ï¿½ï¿½ï¿½è»»ï¿½Ð·ï¿½ï¿½ï¿½Ê¾ï¿½Ø³ï¿½ï¿½ï¿½
     {' ', HID_KEYBOARD_SPACEBAR},
-    // ¸ü¶àÓ³Éä¿ÉÒÔÌí¼Ó
-    {'\0', 0} // ÖÕÖ¹·û
+    // ï¿½ï¿½ï¿½ï¿½Ó³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    {'\0', 0} // ï¿½ï¿½Ö¹ï¿½ï¿½
 };
 
 /*********************************************************************
  * @fn      asciiToHid
  *
- * @brief   ²éÕÒASCII×Ö·û¶ÔÓ¦µÄHID¼üÂë,ÈôÒªÌí¼Ó¸ü¶à×Ö·ûÖ»¸üÐÂ±í¼´¿É
+ * @brief   ï¿½ï¿½ï¿½ï¿½ASCIIï¿½Ö·ï¿½ï¿½ï¿½Ó¦ï¿½ï¿½HIDï¿½ï¿½ï¿½ï¿½,ï¿½ï¿½Òªï¿½ï¿½ï¿½Ó¸ï¿½ï¿½ï¿½ï¿½Ö·ï¿½Ö»ï¿½ï¿½ï¿½Â±ï¿½ï¿½ï¿½ï¿½ï¿½
  *
- * @param   ascii - ´ý²é±í×Ö·û
+ * @param   ascii - ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö·ï¿½
  *
- * @return      0 - ÎÞÆ¥ÅäÏî
- *             !0 - Æ¥ÅäÏîµÄHIDÊä³ö
+ * @return      0 - ï¿½ï¿½Æ¥ï¿½ï¿½ï¿½ï¿½
+ *             !0 - Æ¥ï¿½ï¿½ï¿½ï¿½ï¿½HIDï¿½ï¿½ï¿½
  */
 unsigned char asciiToHid(char ascii) {
     for (int i = 0; asciiToHidMap[i].ascii != '\0'; i++) {
@@ -80,7 +80,7 @@ unsigned char asciiToHid(char ascii) {
             return asciiToHidMap[i].hid_code;
         }
     }
-    // Èç¹ûÎ´ÕÒµ½Æ¥ÅäÏî£¬·µ»Ø0£¨»ò¿ÉÒÔ¸ù¾ÝÐèÒª·µ»Ø´íÎóÂë£©
+    // ï¿½ï¿½ï¿½Î´ï¿½Òµï¿½Æ¥ï¿½ï¿½ï¿½î£¬ï¿½ï¿½ï¿½ï¿½0ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô¸ï¿½ï¿½ï¿½ï¿½ï¿½Òªï¿½ï¿½ï¿½Ø´ï¿½ï¿½ï¿½ï¿½ë£©
     return 0;
 }
 uint32_t io_map_col[] = {col_0,col_1,col_2,col_3};
@@ -93,12 +93,27 @@ uint16_t change_mode_BLE = 0;
 uint16_t change_mode_24 = 0;
 uint16_t change_mode_USB = 0;
 
+// Default numpad layout (used when Data Flash is empty)
+//         COL0      COL1    COL2    COL3
+// ROW0:  NumLock   /       *       -
+// ROW1:  7         8       9       +
+// ROW2:  4         5       6       (empty)
+// ROW3:  1         2       3       (empty)
+// ROW4:  0         (empty) .       Enter
+static const uint8_t default_key_layout[5][4] = {
+    {HID_KEYBPAD_NUM_LOCK, HID_KEYBPAD_DIVIDE, HID_KEYBOARD_MULTIPLY, HID_KEYBOARD_SUBTRACT},
+    {HID_KEYBPAD_7,        HID_KEYBPAD_8,      HID_KEYBPAD_9,         HID_KEYBPAD_ADD},
+    {HID_KEYBPAD_4,        HID_KEYBPAD_5,      HID_KEYBPAD_6,         0x00},
+    {HID_KEYBPAD_1,        HID_KEYBPAD_2,      HID_KEYBPAD_3,         0x00},
+    {HID_KEYBPAD_0,        0x00,               HID_KEYBPAD_DOT,       HID_KEYBPAD_ENTER},
+};
+
 uint8_t key_data_buf[5][4]={   //[Y][X]
-        0x04,0x04,0x04,0x04,
-        0x04,0x04,0x04,0x04,
-        0x04,0x04,0x04,0x04,
-        0x04,0x04,0x04,0x04,
-        0x04,0x04,0x04,0x04,
+        HID_KEYBPAD_NUM_LOCK, HID_KEYBPAD_DIVIDE, HID_KEYBOARD_MULTIPLY, HID_KEYBOARD_SUBTRACT,
+        HID_KEYBPAD_7,        HID_KEYBPAD_8,      HID_KEYBPAD_9,         HID_KEYBPAD_ADD,
+        HID_KEYBPAD_4,        HID_KEYBPAD_5,      HID_KEYBPAD_6,         0x00,
+        HID_KEYBPAD_1,        HID_KEYBPAD_2,      HID_KEYBPAD_3,         0x00,
+        HID_KEYBPAD_0,        0x00,               HID_KEYBPAD_DOT,       HID_KEYBPAD_ENTER,
 };
 uint8_t key_data_buf_1[5][4]={   //[Y][X]
         0x04,0x04,0x04,0x04,
@@ -124,7 +139,7 @@ uint8_t key_data_buf_3[5][4]={   //[Y][X]
 /*********************************************************************
  * @fn      Scan_init
  *
- * @brief   ¼üÅÌÉ¨Ãè²ã³õÊ¼»¯
+ * @brief   ï¿½ï¿½ï¿½ï¿½É¨ï¿½ï¿½ï¿½ï¿½Ê¼ï¿½ï¿½
  *
  * @param   none
  *
@@ -135,16 +150,28 @@ void Scan_init(void)
     GPIOA_ModeCfg(row_all, GPIO_ModeOut_PP_5mA);
     GPIOB_ModeCfg(col_all, GPIO_ModeIN_PU);
     uint8_t data_buf[20];
+    uint8_t flash_empty = 1;
     FLASH_DATA_KEY(data_buf);
-    memcpy(key_data_buf,data_buf,20);
+    for (int i = 0; i < 20; i++) {
+        if (data_buf[i] != 0xFF) {
+            flash_empty = 0;
+            break;
+        }
+    }
+    if (flash_empty) {
+        // Data Flash æœªå†™å…¥è¿‡å¸ƒå±€ï¼Œä½¿ç”¨é»˜è®¤å°é”®ç›˜å¸ƒå±€
+        memcpy(key_data_buf, default_key_layout, 20);
+    } else {
+        memcpy(key_data_buf, data_buf, 20);
+    }
 }
 
 /*********************************************************************
  * @fn      get_key
  *
- * @brief   »ñÈ¡¼üÖµ£¬±¾º¯ÊýÎª°´ÁÐÉ¨Ãè
+ * @brief   ï¿½ï¿½È¡ï¿½ï¿½Öµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½ï¿½ï¿½É¨ï¿½ï¿½
  *
- * @param   buf  -  ´æ·Å¼üÖµµÄÊý×é
+ * @param   buf  -  ï¿½ï¿½Å¼ï¿½Öµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
  *
  * @return  none
  */
@@ -167,16 +194,16 @@ void get_key(uint8_t *buf)
           if (i>=6) {
              break;
           }
-          GPIOB_SetBits(io_map_col[var]);  //colÀ­¸ß
+          GPIOB_SetBits(io_map_col[var]);  //colï¿½ï¿½ï¿½ï¿½
       }
-      GPIOB_SetBits(col_all);  //È«ÏßÀ­¸ß
+      GPIOB_SetBits(col_all);  //È«ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 }
 /*********************************************************************
  * @fn      get_key_fanz
  *
- * @brief   »ñÈ¡¼üÖµ£¬±¾º¯ÊýÎª°´ÐÐÉ¨Ãè
+ * @brief   ï¿½ï¿½È¡ï¿½ï¿½Öµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½ï¿½ï¿½É¨ï¿½ï¿½
  *
- * @param   buf  -  ´æ·Å¼üÖµµÄÊý×é
+ * @param   buf  -  ï¿½ï¿½Å¼ï¿½Öµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
  *
  * @return  none
  */
@@ -199,24 +226,24 @@ uint8_t get_key_fanz(uint8_t *buf)
           if (i>=6) {
              break;
           }
-          GPIOA_SetBits(io_map_row[var]);  //ROWÀ­¸ß
+          GPIOA_SetBits(io_map_row[var]);  //ROWï¿½ï¿½ï¿½ï¿½
       }
-      GPIOA_SetBits(row_all);  //ROWÈ«ÏßÀ­¸ß
+      GPIOA_SetBits(row_all);  //ROWÈ«ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
       return i;
 }
 
 /*********************************************************************
  * @fn      find_mode_changekey
  *
- * @brief   Ñ°ÕÒÁ¬½ÓÄ£Ê½¸Ä±äµÄ±êÖ¾
+ * @brief   Ñ°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä£Ê½ï¿½Ä±ï¿½Ä±ï¿½Ö¾
  *
- * @param   arr  - ¼üÅÌÉ¨ÃèÊý×é
- *          size - Ñ°ÕÒµÄ×Ü³¤¶È
- *          num1 - Ñ°ÕÒµÄÖµ
- *          num2 - Ñ°ÕÒµÄÖµ
- *          num3 - Ñ°ÕÒµÄÖµ
- * @return  0    - Î´Í¬Ê±ÕÒµ½
- *          1    - Í¬Ê±ÕÒµ½×¼±¸¸Ä±äÁ¬½ÓÄ£Ê½
+ * @param   arr  - ï¿½ï¿½ï¿½ï¿½É¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+ *          size - Ñ°ï¿½Òµï¿½ï¿½Ü³ï¿½ï¿½ï¿½
+ *          num1 - Ñ°ï¿½Òµï¿½Öµ
+ *          num2 - Ñ°ï¿½Òµï¿½Öµ
+ *          num3 - Ñ°ï¿½Òµï¿½Öµ
+ * @return  0    - Î´Í¬Ê±ï¿½Òµï¿½
+ *          1    - Í¬Ê±ï¿½Òµï¿½×¼ï¿½ï¿½ï¿½Ä±ï¿½ï¿½ï¿½ï¿½ï¿½Ä£Ê½
  */
 BOOL find_mode_changekey(uint8_t arr[], uint8_t size, uint8_t num1, uint8_t num2, uint8_t num3) {
     int count = 0;
@@ -225,12 +252,12 @@ BOOL find_mode_changekey(uint8_t arr[], uint8_t size, uint8_t num1, uint8_t num2
         if (arr[i] == num1) count++;
         if (arr[i] == num2) count++;
         if (arr[i] == num3) count++;
-        // Èç¹ûÒÑ¾­ÕÒµ½ÁËÈý¸öÊý£¬ÔòÁ¢¼´·µ»Øtrue
+        // ï¿½ï¿½ï¿½ï¿½Ñ¾ï¿½ï¿½Òµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½true
         if (count == 3) {
             return 1;
         }
     }
-    // Èç¹ûÃ»ÓÐÕÒµ½Èý¸öÊý£¬Ôò·µ»Øfalse
+    // ï¿½ï¿½ï¿½Ã»ï¿½ï¿½ï¿½Òµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ò·µ»ï¿½false
     return 0;
 }
 
