@@ -3,7 +3,7 @@
  * Author             : WCH
  * Version            : V1.0
  * Date               : 2018/12/10
- * Description        : µç³Ø·þÎñ
+ * Description        : ï¿½ï¿½Ø·ï¿½ï¿½ï¿½
  *********************************************************************************
  * Copyright (c) 2021 Nanjing Qinheng Microelectronics Co., Ltd.
  * Attention: This software (modified or not) and binary are used for 
@@ -25,9 +25,11 @@
  * CONSTANTS
  */
 
-// ADC voltage levels
-#define BATT_ADC_LEVEL_3V            409
-#define BATT_ADC_LEVEL_2V            273
+// ADC voltage levels (PA4/VIN0, 1:1 divider, Vref=3.3V, 12-bit)
+// VBAT 4.2V -> VADC 2.1V -> ADC 2601
+// VBAT 2.5V -> VADC 1.25V -> ADC 1545
+#define BATT_ADC_MAX                 2601
+#define BATT_ADC_MIN                 1545
 
 #define BATT_LEVEL_VALUE_IDX         2    // Position of battery level in attribute array
 #define BATT_LEVEL_VALUE_CCCD_IDX    3    // Position of battery level CCCD in attribute array
@@ -72,8 +74,8 @@ static battServiceTeardownCB_t battServiceTeardownCB = NULL;
 // Measurement calculation callback
 static battServiceCalcCB_t battServiceCalcCB = NULL;
 
-static uint16_t battMinLevel = BATT_ADC_LEVEL_2V; // For VDD/3 measurements
-static uint16_t battMaxLevel = BATT_ADC_LEVEL_3V; // For VDD/3 measurements
+static uint16_t battMinLevel = BATT_ADC_MIN;
+static uint16_t battMaxLevel = BATT_ADC_MAX;
 
 // Critical battery level setting
 static uint8_t battCriticalLevel;
@@ -498,19 +500,10 @@ static uint8_t battMeasure(void)
     uint16_t adc;
     uint8_t  percent;
 
-    // Call measurement setup callback
-    if(battServiceSetupCB != NULL)
-    {
-        battServiceSetupCB();
-    }
-
-    // Configure ADC and perform a read
-    adc = 300;
-    // Call measurement teardown callback
-    if(battServiceTeardownCB != NULL)
-    {
-        battServiceTeardownCB();
-    }
+    // Read PA4 (VIN0/CH_EXTIN_0) - VBAT via 1:1 divider
+    ADC_ExtSingleChSampInit(SampleFreq_3_2, ADC_PGA_0);
+    ADC_ChannelCfg(CH_EXTIN_0);
+    adc = ADC_ExcutSingleConver();
 
     if(adc >= battMaxLevel)
     {
@@ -528,13 +521,8 @@ static uint8_t battMeasure(void)
         }
         else
         {
-            uint16_t range = battMaxLevel - battMinLevel + 1;
-
-            // optional if you want to keep it even, otherwise just take floor of divide
-            // range += (range & 1);
-            range >>= 2; // divide by 4
-
-            percent = (uint8_t)((((adc - battMinLevel) * 25) + (range - 1)) / range);
+            uint16_t range = battMaxLevel - battMinLevel;
+            percent = (uint8_t)(((adc - battMinLevel) * 100) / range);
         }
     }
 
