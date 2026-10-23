@@ -150,18 +150,22 @@ void Scan_init(void)
     GPIOA_ModeCfg(row_all, GPIO_ModeOut_PP_5mA);
     GPIOB_ModeCfg(col_all, GPIO_ModeIN_PU);
     uint8_t data_buf[20];
-    uint8_t flash_empty = 1;
+    uint8_t flash_valid = 0;
     FLASH_DATA_KEY(data_buf);
-    for (int i = 0; i < 20; i++) {
-        if (data_buf[i] != 0xFF) {
-            flash_empty = 0;
-            break;
+    // Valid only if not all bytes identical (erased=0xFF or old default=0x04)
+    {
+        uint8_t first = data_buf[0];
+        for (int i = 1; i < 20; i++) {
+            if (data_buf[i] != first) {
+                flash_valid = 1;
+                break;
+            }
         }
     }
-    if (flash_empty) {
-        memcpy(key_data_buf, default_key_layout, 20);
-    } else {
+    if (flash_valid) {
         memcpy(key_data_buf, data_buf, 20);
+    } else {
+        memcpy(key_data_buf, default_key_layout, 20);
     }
 }
 
