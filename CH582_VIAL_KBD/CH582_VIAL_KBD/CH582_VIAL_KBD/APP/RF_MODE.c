@@ -445,5 +445,6 @@ void RF_Init(void)
     PRINT("rf bind mac: %x\n", keyboard_mac_32);
     tmos_start_task(RF_taskID, SBP_RF_kbd_data_EVT, MS1_TO_SYSTEM_TIME(8));
     tmos_start_task(RF_taskID, SBP_RF_LED_EVT, MS1_TO_SYSTEM_TIME(500));
+    tmos_start_task(RF_taskID, WS2812_EVENT, MS1_TO_SYSTEM_TIME(150));
 }
 /******************************** endfile @ main ******************************/
