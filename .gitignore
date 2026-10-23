@@ -1,0 +1,40 @@
+# IDE / 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# MounRiver Studio 工作区
+.mrs/
+.settings/
+*.launch
+*.wvproj
+.cproject
+.project
+.template
+
+# 备份/恢复文件
+.dsh-acl-recovery/
+.dsh-edit-backups/
+
+# 编译产物
+obj/
+*.o
+*.elf
+*.map
+*.lst
+*.hex
+!LIB/*.hex
+!LIB/CH58xBLE_ROM.hex
+!LIB/CH58xBLE_ROMx.hex
+!LIB/CH59xBLE_ROM.hex
+!LIB/CH59xBLE_ROM_PERI.hex
+!LIB/CH59xBLE_ROMx.hex
+
+# 个人记录
+FIX记录.md
+日志.txt
+
+# 系统文件
+Thumbs.db
+desktop.ini
