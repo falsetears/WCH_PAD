@@ -174,7 +174,7 @@ void RF_2G4StatusCallBack(uint8_t sta, uint8_t crc, uint8_t *rxBuf)
         case TX_MODE_RX_TIMEOUT: // Timeout is about 200us
         {
             time_out_flag++;
-            if (time_out_flag>=200) {
+            if (time_out_flag>=100) {
                 RF_Bounding_flag = 0;
                 time_out_flag=0;
                 tmos_memset(Dongle_data.RXBUFF_key, 0, 8); //�Ͽ�����һ��
@@ -251,12 +251,7 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
     {
         RF_Shut();
         RF_Bounding_flag = 0;
-        if (bounding_mac != 0) {
-            RF_Bounding_flag = 1;
-            RF_Init(bounding_mac);
-        } else {
-            RF_Init(0x82531829);
-        }
+        RF_Init(0x82531829);
 //        tmos_start_task( usbTaskID, STOP_USB_EVENT, 0 );//关闭usb中断
         return events ^ SBP_nobounding_EVT;
     }

@@ -198,7 +198,7 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
     }
     if(events & SBP_RF_REBIND_EVT)
     {
-        rf_lost_count = 0;
+        rf_lost_count = 100;
         if (bounding_mac != 0) {
             RF_Bounding_flag = 1;
             RF_ConfigAddress(bounding_mac);
@@ -325,7 +325,7 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
                 RF_ConfigAddress(bounding_mac);
                 RF_Shut();
                 RF_Tx(TX_UNBIND, 2, 0xFF, 0xFF);
-                rf_unbind_wait = 50;
+                rf_unbind_wait = 100;
             } else {
                 RF_BindFlash_Erase();
                 RF_Bounding_flag = 0;
@@ -360,19 +360,21 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
     }
     if(events & WS2812_EVENT)
     {
-        process_RGB_to_pwm(flowing_buf_24, 17, Pwmout_buf);
-        {
-            uint32_t status_color;
-            if (rf_pairing_mode) {
-                status_color = rf_led_blink_state ? 0x000008 : 0x000000;
-            } else if (!RF_Bounding_flag) {
-                status_color = rf_led_blink_state ? 0x000800 : 0x000000;
-            } else {
-                status_color = 0x080800;
-            }
-            uint32_t status_buf[1] = {status_color};
-            process_RGB_to_pwm(status_buf, 1, &Pwmout_buf[16*24]);
+        static __attribute__((aligned(4))) uint32_t led_buf[17];
+        uint32_t status_color, base_color;
+        if (rf_pairing_mode) {
+            base_color = 0x000000;
+            status_color = rf_led_blink_state ? 0x000008 : 0x000000;
+        } else if (RF_Bounding_flag && rf_lost_count < 100) {
+            base_color = 0x080800;
+            status_color = 0x080800;
+        } else {
+            base_color = 0x000000;
+            status_color = rf_led_blink_state ? 0x000800 : 0x000000;
         }
+        for (int i = 0; i < 17; i++) led_buf[i] = base_color;
+        led_buf[16] = status_color;
+        process_RGB_to_pwm(led_buf, 17, Pwmout_buf);
         PWM_DATA_DMA_send(Pwmout_buf,sizeof(Pwmout_buf));
         tmos_start_task(RF_taskID, WS2812_EVENT, MS1_TO_SYSTEM_TIME(150));
         return (events ^ WS2812_EVENT);
@@ -439,6 +441,7 @@ void RF_Init(void)
         bounding_mac = saved_mac;
         if (RF_ConfigAddress(bounding_mac) == 0) {
             RF_Bounding_flag = 1;
+            rf_lost_count = 100;
             RF_Shut();
             RF_Rx(TX_DATA, 10, 0xFF, 0xFF);
             PRINT("rf restored binding: %x\n", bounding_mac);
