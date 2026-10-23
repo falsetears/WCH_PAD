@@ -391,8 +391,8 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
         }
         led_buf[RF_LED_LAST] = status_color;
 
-        process_RGB_to_pwm(led_buf, RF_LED_COUNT, Pwmout_buf);
-        PWM_DATA_DMA_send(Pwmout_buf, WS2812_PWM_WORDS);
+        process_RGB_to_pwm(led_buf, RF_LED_COUNT, &Pwmout_buf[WS2812_RESET_WORDS]);
+        PWM_DATA_DMA_send(Pwmout_buf, WS2812_FRAME_WORDS);
         tmos_start_task(RF_taskID, WS2812_EVENT, MS1_TO_SYSTEM_TIME(RF_LED_REFRESH_MS));
         return (events ^ WS2812_EVENT);
     }

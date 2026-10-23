@@ -37,7 +37,7 @@ __attribute__((aligned(4))) uint32_t flowing_buf_24[17]={
         0x080800,0x080800,0x080800,0x080800,0x080800,
         0x080800,0x080800,
 };
-__attribute__((aligned(4))) uint32_t Pwmout_buf[408]={0};
+__attribute__((aligned(4))) uint32_t Pwmout_buf[WS2812_FRAME_WORDS]={0};
 
 /*********************************************************************
  * @fn      Ws2812_Init
