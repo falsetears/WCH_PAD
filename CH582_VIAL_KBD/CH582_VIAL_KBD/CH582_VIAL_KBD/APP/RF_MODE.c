@@ -28,10 +28,8 @@ uint32_t bounding_mac = 0;
 volatile uint16_t rf_lost_count = 0;
 uint8_t  rf_led_state[2] = {0};
 uint8_t  TX_BIND[8] = {0x98,0xBD,0,0,0,0,0,0};
-uint8_t  TX_UNBIND[2] = {0x98,0xBE};
 uint8_t  rf_pairing_mode = 0;
 uint8_t  rf_led_blink_state = 0;
-uint8_t  rf_unbind_wait = 0;
 uint16_t change_mode_pair = 0;
 
 static uint8_t RF_ConfigAddress(uint32_t addr);
@@ -226,26 +224,6 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
     }
     if(events & SBP_RF_kbd_data_EVT)
     {
-        if (rf_unbind_wait > 0) {
-            rf_unbind_wait--;
-            if (bounding_mac != 0) {
-                RF_Shut();
-                RF_Tx(TX_UNBIND, 2, 0xFF, 0xFF);
-            }
-            if (rf_unbind_wait == 0) {
-                RF_BindFlash_Erase();
-                RF_Bounding_flag = 0;
-                rf_lost_count = 0;
-                bounding_mac = 0;
-                RF_ConfigAddress(0x82531829);
-                RF_Shut();
-                RF_Tx(TX_BIND, 8, 0xFF, 0xFF);
-                PRINT("rf pairing mode\n");
-            }
-            tmos_start_task(RF_taskID, SBP_RF_kbd_data_EVT, MS1_TO_SYSTEM_TIME(8));
-            return (events ^ SBP_RF_kbd_data_EVT);
-        }
-
         if(!RF_Bounding_flag)
         {
             RF_Shut();
@@ -321,20 +299,14 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
         }
         if (change_mode_pair == 300) {
             rf_pairing_mode = 1;
-            if (bounding_mac != 0) {
-                RF_ConfigAddress(bounding_mac);
-                RF_Shut();
-                RF_Tx(TX_UNBIND, 2, 0xFF, 0xFF);
-                rf_unbind_wait = 100;
-            } else {
-                RF_BindFlash_Erase();
-                RF_Bounding_flag = 0;
-                rf_lost_count = 0;
-                RF_ConfigAddress(0x82531829);
-                RF_Shut();
-                RF_Tx(TX_BIND, 8, 0xFF, 0xFF);
-                PRINT("rf pairing mode\n");
-            }
+            RF_BindFlash_Erase();
+            RF_Bounding_flag = 0;
+            rf_lost_count = 0;
+            bounding_mac = 0;
+            RF_ConfigAddress(0x82531829);
+            RF_Shut();
+            RF_Tx(TX_BIND, 8, 0xFF, 0xFF);
+            PRINT("rf pairing mode\n");
         }
         if (dongle_boot_flag == 1250) {
             tmos_start_task(RF_taskID, SBP_dongle_boot_EVT, 0);
