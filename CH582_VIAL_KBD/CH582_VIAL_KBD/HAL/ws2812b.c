@@ -154,9 +154,21 @@ void PWM_DATA_DMA_send(uint32_t* Pwmout_buf_start,uint32_t len)
     R8_TMR2_CTRL_MOD |= RB_TMR_OUT_EN;              //TMR2_PWMEnable();
     R8_TMR2_CTRL_DMA = RB_TMR_DMA_ENABLE;           //DMAÊä³öÊ¹ÄÜ
     TMR2_ClearITFlag(TMR1_2_IT_DMA_END);
-    TMR2_ITCfg(ENABLE, TMR1_2_IT_DMA_END);
-    PFIC_EnableIRQ(TMR2_IRQn);
+
     TMR2_Enable();
+
+    // Send synchronously. While the WS2812 frame is on the wire the RF
+    // task must not run RF_Shut()/RF_Tx; 408 words take about 0.5 ms.
+    for (volatile uint32_t wait = 0; wait < 30000; wait++) {
+        if (TMR2_GetITFlag(TMR1_2_IT_DMA_END)) {
+            break;
+        }
+    }
+
+    TMR2_ClearITFlag(TMR1_2_IT_DMA_END);
+    TMR2_Disable();
+    TMR2_PWMDisable();
+    GPIOA_ResetBits(GPIO_Pin_11);
 }
 
 /*********************************************************************

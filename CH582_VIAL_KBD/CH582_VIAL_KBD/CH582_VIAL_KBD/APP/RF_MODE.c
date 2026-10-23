@@ -37,6 +37,7 @@ uint32_t keyboard_mac_32 = 0;
 uint32_t dongle_mac_32 = 0;
 uint32_t bounding_mac = 0;
 volatile uint16_t rf_lost_count = 0;
+volatile uint8_t  rf_tx_active = 0;
 uint8_t  rf_led_state[2] = {0};
 uint8_t  TX_BIND[8] = {0x98,0xBD,0,0,0,0,0,0};
 uint8_t  rf_pairing_mode = 0;
@@ -44,6 +45,7 @@ uint8_t  rf_led_blink_state = 0;
 uint16_t change_mode_pair = 0;
 
 static uint8_t RF_ConfigAddress(uint32_t addr);
+static void RF_TxGuarded(uint8_t *buf, uint8_t len);
 static void RF_BindFlash_Write(uint32_t mac);
 static uint32_t RF_BindFlash_Read(void);
 static void RF_BindFlash_Erase(void);
@@ -82,6 +84,18 @@ static void RF_BindFlash_Erase(void)
 }
 
 /*********************************************************************
+ * @fn      RF_TxGuarded
+ *
+ * @brief   Start RF TX and keep the WS2812 frame away from the RF TX
+ */
+static void RF_TxGuarded(uint8_t *buf, uint8_t len)
+{
+    rf_tx_active = 1;
+    tmos_start_task(RF_taskID, SBP_RF_TX_GUARD_EVT, MS1_TO_SYSTEM_TIME(4));
+    RF_Tx(buf, len, 0xFF, 0xFF);
+}
+
+/*********************************************************************
  * @fn      RF_2G4StatusCallBack
  *
  * @brief   RF ״̬صע⣺ڴֱӵRFջ߷APIҪʹ¼ķʽ
@@ -98,6 +112,7 @@ void RF_2G4StatusCallBack(uint8_t sta, uint8_t crc, uint8_t *rxBuf)
     {
         case TX_MODE_TX_FINISH:
         {
+            rf_tx_active = 0;
             if (RF_Bounding_flag) {
                 tmos_start_task(RF_taskID, SBP_RF_RF_RX_EVT, MS1_TO_SYSTEM_TIME(1));
             }
@@ -105,6 +120,7 @@ void RF_2G4StatusCallBack(uint8_t sta, uint8_t crc, uint8_t *rxBuf)
         }
         case TX_MODE_TX_FAIL:
         {
+            rf_tx_active = 0;
             if (RF_Bounding_flag) {
                 tmos_start_task(RF_taskID, SBP_RF_RF_RX_EVT, MS1_TO_SYSTEM_TIME(1));
             }
@@ -139,6 +155,7 @@ void RF_2G4StatusCallBack(uint8_t sta, uint8_t crc, uint8_t *rxBuf)
         }
         case TX_MODE_RX_TIMEOUT:
         {
+            rf_tx_active = 0;
             if (RF_Bounding_flag) {
                 tmos_start_task(RF_taskID, SBP_RF_RF_RX_EVT, MS1_TO_SYSTEM_TIME(1));
             }
@@ -181,6 +198,11 @@ void RF_2G4StatusCallBack(uint8_t sta, uint8_t crc, uint8_t *rxBuf)
  */
 uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
 {
+    if(events & SBP_RF_TX_GUARD_EVT)
+    {
+        rf_tx_active = 0;
+        return (events ^ SBP_RF_TX_GUARD_EVT);
+    }
     if(events & SBP_RF_BIND_EVT)
     {
         if(!RF_Bounding_flag)
@@ -218,7 +240,7 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
             RF_Bounding_flag = 0;
             RF_ConfigAddress(0x82531829);
             RF_Shut();
-            RF_Tx(TX_BIND, 8, 0xFF, 0xFF);
+            RF_TxGuarded(TX_BIND, 8);
             PRINT("rf rebind\n");
         }
         tmos_start_task(RF_taskID, SBP_RF_kbd_data_EVT, MS1_TO_SYSTEM_TIME(8));
@@ -246,7 +268,7 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
 
         if(!RF_Bounding_flag)
         {
-            RF_Tx(TX_BIND, 8, 0xFF, 0xFF);
+            RF_TxGuarded(TX_BIND, 8);
         }
         else
         {
@@ -316,7 +338,7 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
             bounding_mac = 0;
             RF_ConfigAddress(0x82531829);
             RF_Shut();
-            RF_Tx(TX_BIND, 8, 0xFF, 0xFF);
+            RF_TxGuarded(TX_BIND, 8);
             PRINT("rf pairing mode\n");
         }
         if (dongle_boot_flag == 1250) {
@@ -328,7 +350,7 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
     if(events & SBP_dongle_boot_EVT)
     {
        RF_Shut();
-       RF_Tx(TX_DATA3, 1, 0xFF, 0xFF);
+       RF_TxGuarded(TX_DATA3, 1);
        if(RF_Bounding_flag)
        {
            tmos_start_task(RF_taskID, SBP_RF_RF_RX_EVT, MS1_TO_SYSTEM_TIME(2));
@@ -337,6 +359,13 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
     }
     if(events & WS2812_EVENT)
     {
+        static uint8_t rf_wait_ticks = 0;
+        if (rf_tx_active && rf_wait_ticks < 20) {
+            rf_wait_ticks++;
+            tmos_start_task(RF_taskID, WS2812_EVENT, MS1_TO_SYSTEM_TIME(1));
+            return (events ^ WS2812_EVENT);
+        }
+        rf_wait_ticks = 0;
         static __attribute__((aligned(4))) uint32_t led_buf[RF_LED_COUNT];
         uint32_t base_color = RF_LED_YELLOW;
         uint32_t status_color = 0;
