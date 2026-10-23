@@ -1,7 +1,7 @@
 /*
  * RF_MODE.c
  *
- *  Created on: 2024ï¿½ï¿½11ï¿½ï¿½6ï¿½ï¿½
+ *  Created on: 2024Äê11ÔÂ6ÈÕ
  *      Author: OWNER
  */
 #include "CONFIG.h"
@@ -33,11 +33,11 @@ static uint8_t RF_ConfigAddress(uint32_t addr);
 /*********************************************************************
  * @fn      RF_2G4StatusCallBack
  *
- * @brief   RF ×´Ì¬ï¿½Øµï¿½ï¿½ï¿½×¢ï¿½â£ºï¿½ï¿½ï¿½ï¿½ï¿½Ú´Ëºï¿½ï¿½ï¿½ï¿½ï¿½Ö±ï¿½Óµï¿½ï¿½ï¿½RFï¿½ï¿½ï¿½Õ»ï¿½ï¿½ß·ï¿½ï¿½ï¿½APIï¿½ï¿½ï¿½ï¿½ÒªÊ¹ï¿½ï¿½ï¿½Â¼ï¿½ï¿½Ä·ï¿½Ê½ï¿½ï¿½ï¿½ï¿½
+ * @brief   RF ×´Ì¬»Øµ÷£¬×¢Òâ£º²»¿ÉÔÚ´Ëº¯ÊýÖÐÖ±½Óµ÷ÓÃRF½ÓÊÕ»òÕß·¢ËÍAPI£¬ÐèÒªÊ¹ÓÃÊÂ¼þµÄ·½Ê½µ÷ÓÃ
  *
- * @param   sta     - ×´Ì¬ï¿½ï¿½ï¿½ï¿½
- * @param   crc     - crcÐ£ï¿½ï¿½ï¿½ï¿½
- * @param   rxBuf   - ï¿½ï¿½ï¿½ï¿½bufÖ¸ï¿½ï¿½
+ * @param   sta     - ×´Ì¬ÀàÐÍ
+ * @param   crc     - crcÐ£Ñé½á¹û
+ * @param   rxBuf   - Êý¾ÝbufÖ¸Õë
  *
  * @return  none
  */
@@ -64,7 +64,7 @@ void RF_2G4StatusCallBack(uint8_t sta, uint8_t crc, uint8_t *rxBuf)
             if (crc == 0) {
                 rf_lost_count = 0;
                 if (rxBuf[2] == 0x98) {
-                    if (rxBuf[3] == 0xBD) {          // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ó¦ï¿½ï¿½: 0x98 0xBD + dongle MAC
+                    if (rxBuf[3] == 0xBD) {          // ½ÓÊÕÆ÷°ó¶¨Ó¦´ð: 0x98 0xBD + dongle MAC
                         dongle_mac_32 = ((uint32_t)rxBuf[4] << 24) |
                                         ((uint32_t)rxBuf[5] << 16) |
                                         ((uint32_t)rxBuf[6] << 8)  |
@@ -75,7 +75,7 @@ void RF_2G4StatusCallBack(uint8_t sta, uint8_t crc, uint8_t *rxBuf)
                             tmos_set_event(RF_taskID, SBP_RF_BIND_EVT);
                         }
                     }
-                    else if (rxBuf[3] == 0xEB) {     // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: 0x98 0xEB led0 led1
+                    else if (rxBuf[3] == 0xEB) {     // ½ÓÊÕÆ÷ÐÄÌø: 0x98 0xEB led0 led1
                         rf_led_state[0] = rxBuf[4];
                         rf_led_state[1] = rxBuf[5];
                     }
@@ -97,7 +97,7 @@ void RF_2G4StatusCallBack(uint8_t sta, uint8_t crc, uint8_t *rxBuf)
         {
             if (crc == 0) {
                 rf_lost_count = 0;
-                if (rxBuf[2] == 0x98 && rxBuf[3] == 0xEB) {   // ï¿½ï¿½ï¿½ï¿½
+                if (rxBuf[2] == 0x98 && rxBuf[3] == 0xEB) {   // ÐÄÌø
                     rf_led_state[0] = rxBuf[4];
                     rf_led_state[1] = rxBuf[5];
                 }
@@ -121,12 +121,12 @@ void RF_2G4StatusCallBack(uint8_t sta, uint8_t crc, uint8_t *rxBuf)
 /*********************************************************************
  * @fn      RF_ProcessEvent
  *
- * @brief   RF ï¿½Â¼ï¿½ï¿½ï¿½ï¿½ï¿½
+ * @brief   RF ÊÂ¼þ´¦Àí
  *
- * @param   task_id - ï¿½ï¿½ï¿½ï¿½ID
- * @param   events  - ï¿½Â¼ï¿½ï¿½ï¿½Ö¾
+ * @param   task_id - ÈÎÎñID
+ * @param   events  - ÊÂ¼þ±êÖ¾
  *
- * @return  Î´ï¿½ï¿½ï¿½ï¿½Â¼ï¿½
+ * @return  Î´Íê³ÉÊÂ¼þ
  */
 uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
 {
@@ -141,7 +141,7 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
                 RF_Bounding_flag = 1;
                 rf_lost_count = 0;
                 RF_Shut();
-                RF_Rx(TX_DATA, 10, 0xFF, 0xFF);     // ï¿½ó¶¨ºï¿½ï¿½ï¿½Îªï¿½Ó»ï¿½ï¿½ï¿½ï¿½Ãµï¿½Ç°ï¿½ï¿½ï¿½Ì±ï¿½ï¿½ï¿½ï¿½ï¿½ÎªACK
+                RF_Rx(TX_DATA, 10, 0xFF, 0xFF);     // °ó¶¨ºó×÷Îª´Ó»ú£¬ÓÃµ±Ç°¼üÅÌ±¨¸æ×÷ÎªACK
                 PRINT("rf bound: %x\n", bounding_mac);
                 tmos_start_task(RF_taskID, SBP_RF_kbd_data_EVT, MS1_TO_SYSTEM_TIME(10));
             }
@@ -189,7 +189,7 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
         }
         else
         {
-            // ï¿½ó¶¨ºó¿¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î¬ï¿½ï¿½ï¿½ï¿½ï¿½Ó£ï¿½1.6s ï¿½Õ²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Â°ï¿½
+            // °ó¶¨ºó¿¿½ÓÊÕÆ÷ÐÄÌøÎ¬³ÖÁ¬½Ó£»1.6s ÊÕ²»µ½ÐÄÌø¾ÍÖØÐÂ°ó¶¨
             if(rf_lost_count < 60000)
             {
                 rf_lost_count++;
@@ -260,7 +260,7 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
     if(events & WS2812_EVENT)
     {
        process_RGB_to_pwm(flowing_buf, 17, Pwmout_buf);
-       Ws2812_move_control(flowing_buf,RGB_Left_flowing_water,17);//Ä£Ê½Ñ¡ï¿½ï¿½
+       Ws2812_move_control(flowing_buf,RGB_Left_flowing_water,17);//Ä£Ê½Ñ¡Ôñ
        PWM_DATA_DMA_send(Pwmout_buf,sizeof(Pwmout_buf));
        tmos_start_task(RF_taskID, WS2812_EVENT, MS1_TO_SYSTEM_TIME(150));
        return (events ^ WS2812_EVENT);
@@ -272,9 +272,9 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
 /*********************************************************************
  * @fn      RF_ConfigAddress
  *
- * @brief   ï¿½ï¿½ï¿½ï¿½ RF ï¿½ï¿½ï¿½Êµï¿½Ö·ï¿½ï¿½Æµï¿½ï¿½Í»Øµï¿½
+ * @brief   ÅäÖÃ RF ·ÃÎÊµØÖ·¡¢ÆµµãºÍ»Øµ÷
  *
- * @return  0 - ï¿½É¹ï¿½
+ * @return  0 - ³É¹¦
  */
 static uint8_t RF_ConfigAddress(uint32_t addr)
 {
@@ -298,7 +298,7 @@ static uint8_t RF_ConfigAddress(uint32_t addr)
 /*********************************************************************
  * @fn      RF_Init
  *
- * @brief   RF ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½ MAC ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+ * @brief   RF ³õÊ¼»¯£¬¶ÁÈ¡¼üÅÌ MAC ²¢½øÈë°ó¶¨Á÷³Ì
  *
  * @return  none
  */
