@@ -338,8 +338,8 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
             base_color = 0x080800;
             status_color = rf_led_blink_state ? 0x000008 : 0x000000;
         } else if (RF_Bounding_flag && rf_lost_count < 100) {
-            base_color = 0x000800;
-            status_color = 0x000800;
+            base_color = 0x080800;
+            status_color = 0x080800;
         } else {
             base_color = 0x080800;
             status_color = rf_led_blink_state ? 0x080000 : 0x000000;
