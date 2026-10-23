@@ -251,7 +251,12 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
     {
         RF_Shut();
         RF_Bounding_flag = 0;
-        RF_Init(0x82531829);
+        if (bounding_mac != 0) {
+            RF_Bounding_flag = 1;
+            RF_Init(bounding_mac);
+        } else {
+            RF_Init(0x82531829);
+        }
 //        tmos_start_task( usbTaskID, STOP_USB_EVENT, 0 );//关闭usb中断
         return events ^ SBP_nobounding_EVT;
     }
@@ -259,6 +264,7 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
     {
         RF_Shut();
         RF_Bounding_flag = 0;
+        bounding_mac = 0;
         Dongle_BindFlash_Erase();
         tmos_stop_task(RFtaskID, SBP_heartbeat_EVT);
         RF_Init(0x82531829);

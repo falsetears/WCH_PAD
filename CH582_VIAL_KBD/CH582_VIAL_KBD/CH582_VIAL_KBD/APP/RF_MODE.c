@@ -198,12 +198,20 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
     }
     if(events & SBP_RF_REBIND_EVT)
     {
-        RF_Bounding_flag = 0;
         rf_lost_count = 0;
-        RF_ConfigAddress(0x82531829);
-        RF_Shut();
-        RF_Tx(TX_BIND, 8, 0xFF, 0xFF);
-        PRINT("rf rebind\n");
+        if (bounding_mac != 0) {
+            RF_Bounding_flag = 1;
+            RF_ConfigAddress(bounding_mac);
+            RF_Shut();
+            RF_Rx(TX_DATA, 10, 0xFF, 0xFF);
+            PRINT("rf wait original dongle: %x\n", bounding_mac);
+        } else {
+            RF_Bounding_flag = 0;
+            RF_ConfigAddress(0x82531829);
+            RF_Shut();
+            RF_Tx(TX_BIND, 8, 0xFF, 0xFF);
+            PRINT("rf rebind\n");
+        }
         tmos_start_task(RF_taskID, SBP_RF_kbd_data_EVT, MS1_TO_SYSTEM_TIME(8));
         return (events ^ SBP_RF_REBIND_EVT);
     }
@@ -352,8 +360,7 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
     }
     if(events & WS2812_EVENT)
     {
-        Ws2812_move_control(flowing_buf, RGB_Left_flowing_water, 17);
-        process_RGB_to_pwm(flowing_buf, 17, Pwmout_buf);
+        process_RGB_to_pwm(flowing_buf_24, 17, Pwmout_buf);
         {
             uint32_t status_color;
             if (rf_pairing_mode) {
