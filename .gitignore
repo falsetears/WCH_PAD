@@ -4,14 +4,8 @@
 *.swp
 *.swo
 
-# MounRiver Studio 工作区
+# MounRiver Studio 工作区（仅排除缓存）
 .mrs/
-.settings/
-*.launch
-*.wvproj
-.cproject
-.project
-.template
 
 # 备份/恢复文件
 .dsh-acl-recovery/
