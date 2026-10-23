@@ -9,6 +9,8 @@
 #define INCLUDE_WS2812_H_
 
 #define WS2812_EVENT              0x0010
+#define WS2812_LED_COUNT          17
+#define WS2812_PWM_WORDS          (WS2812_LED_COUNT * 24)
 
 typedef enum
 {
