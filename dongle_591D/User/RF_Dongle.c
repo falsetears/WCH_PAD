@@ -9,7 +9,7 @@
  *******************************************************************************/
 
 /******************************************************************************/
-/* Í·ÎÄ¼þ°üº¬ */
+/* Í·ï¿½Ä¼ï¿½ï¿½ï¿½ï¿½ï¿½ */
 #include "CONFIG.h"
 #include "RF_Dongle.h"
 #include "USB_BLE.h"
@@ -29,10 +29,42 @@ uint32_t device_mac_32 = 0;
 __attribute__((aligned(4))) uint8_t device_mac[6] = {0};
 __attribute__((aligned(4))) uint8_t dongle_mac[8] = {0x98,0xBD,0X00,0X00,0X00,0X00,0X00,0X00};
 __attribute__((aligned(4))) uint8_t USB_VIAL_DATA[36] = {0x98,0xE2,0X00,0X00,0X00,0X00,0X00,0X00};
+
+static void Dongle_BindFlash_Write(uint32_t mac)
+{
+    __attribute__((aligned(4))) uint32_t buf[1] = {mac};
+    EEPROM_WRITE(RF_BIND_FLASH_ADDR, buf, 4);
+}
+
+static uint32_t Dongle_BindFlash_Read(void)
+{
+    __attribute__((aligned(4))) uint32_t buf[1] = {0};
+    EEPROM_READ(RF_BIND_FLASH_ADDR, buf, 4);
+    if (buf[0] == 0xFFFFFFFF || buf[0] == 0) return 0;
+    return buf[0];
+}
+
+static void Dongle_BindFlash_Erase(void)
+{
+    EEPROM_ERASE(RF_BIND_FLASH_ADDR, 256);
+}
+
+void RF_BootInit(void)
+{
+    uint32_t saved = Dongle_BindFlash_Read();
+    if (saved != 0) {
+        bounding_mac = saved;
+        RF_Bounding_flag = 1;
+        PRINT("dongle restored binding: %x\n", saved);
+        RF_Init(saved);
+    } else {
+        RF_Init(0x82531829);
+    }
+}
 /*********************************************************************
  * @fn      RF_Wait_Tx_End
  *
- * @brief   ÊÖ¶¯Ä£Ê½µÈ´ý·¢ËÍÍê³É£¬×Ô¶¯Ä£Ê½µÈ´ý·¢ËÍ-½ÓÊÕÍê³É£¬±ØÐëÔÚRAMÖÐµÈ´ý£¬µÈ´ýÊ±¿ÉÒÔÖ´ÐÐÓÃ»§´úÂë£¬µ«ÐèÒª×¢ÒâÖ´ÐÐµÄ´úÂë±ØÐëÔËÐÐÔÚRAMÖÐ£¬·ñÔòÓ°Ïì·¢ËÍ
+ * @brief   ï¿½Ö¶ï¿½Ä£Ê½ï¿½È´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É£ï¿½ï¿½Ô¶ï¿½Ä£Ê½ï¿½È´ï¿½ï¿½ï¿½ï¿½ï¿½-ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½RAMï¿½ÐµÈ´ï¿½ï¿½ï¿½ï¿½È´ï¿½Ê±ï¿½ï¿½ï¿½ï¿½Ö´ï¿½ï¿½ï¿½Ã»ï¿½ï¿½ï¿½ï¿½ë£¬ï¿½ï¿½ï¿½ï¿½Òª×¢ï¿½ï¿½Ö´ï¿½ÐµÄ´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½RAMï¿½Ð£ï¿½ï¿½ï¿½ï¿½ï¿½Ó°ï¿½ì·¢ï¿½ï¿½
  *
  * @return  none
  */
@@ -46,7 +78,7 @@ void RF_Wait_Tx_End()
         i++;
         __nop();
         __nop();
-        // Ô¼5ms³¬Ê±
+        // Ô¼5msï¿½ï¿½Ê±
         if(i>(FREQ_SYS/1000))
         {
             tx_end_flag = TRUE;
@@ -57,7 +89,7 @@ void RF_Wait_Tx_End()
 /*********************************************************************
  * @fn      RF_Wait_Rx_End
  *
- * @brief   ×Ô¶¯Ä£Ê½µÈ´ýÓ¦´ð·¢ËÍÍê³É£¬±ØÐëÔÚRAMÖÐµÈ´ý£¬µÈ´ýÊ±¿ÉÒÔÖ´ÐÐÓÃ»§´úÂë£¬µ«ÐèÒª×¢ÒâÖ´ÐÐµÄ´úÂë±ØÐëÔËÐÐÔÚRAMÖÐ£¬·ñÔòÓ°Ïì·¢ËÍ
+ * @brief   ï¿½Ô¶ï¿½Ä£Ê½ï¿½È´ï¿½Ó¦ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½RAMï¿½ÐµÈ´ï¿½ï¿½ï¿½ï¿½È´ï¿½Ê±ï¿½ï¿½ï¿½ï¿½Ö´ï¿½ï¿½ï¿½Ã»ï¿½ï¿½ï¿½ï¿½ë£¬ï¿½ï¿½ï¿½ï¿½Òª×¢ï¿½ï¿½Ö´ï¿½ÐµÄ´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½RAMï¿½Ð£ï¿½ï¿½ï¿½ï¿½ï¿½Ó°ï¿½ì·¢ï¿½ï¿½
  *
  * @return  none
  */
@@ -71,7 +103,7 @@ void RF_Wait_Rx_End()
         i++;
         __nop();
         __nop();
-        // Ô¼5ms³¬Ê±
+        // Ô¼5msï¿½ï¿½Ê±
         if(i>(FREQ_SYS/1000))
         {
             rx_end_flag = TRUE;
@@ -81,11 +113,11 @@ void RF_Wait_Rx_End()
 /*********************************************************************
  * @fn      RF_2G4StatusCallBack
  *
- * @brief   RF ×´Ì¬»Øµ÷£¬×¢Òâ£º²»¿ÉÔÚ´Ëº¯ÊýÖÐÖ±½Óµ÷ÓÃRF½ÓÊÕ»òÕß·¢ËÍAPI£¬ÐèÒªÊ¹ÓÃÊÂ¼þµÄ·½Ê½µ÷ÓÃ
+ * @brief   RF ×´Ì¬ï¿½Øµï¿½ï¿½ï¿½×¢ï¿½â£ºï¿½ï¿½ï¿½ï¿½ï¿½Ú´Ëºï¿½ï¿½ï¿½ï¿½ï¿½Ö±ï¿½Óµï¿½ï¿½ï¿½RFï¿½ï¿½ï¿½Õ»ï¿½ï¿½ß·ï¿½ï¿½ï¿½APIï¿½ï¿½ï¿½ï¿½ÒªÊ¹ï¿½ï¿½ï¿½Â¼ï¿½ï¿½Ä·ï¿½Ê½ï¿½ï¿½ï¿½ï¿½
  *
- * @param   sta     - ×´Ì¬ÀàÐÍ
- * @param   crc     - crcÐ£Ñé½á¹û
- * @param   rxBuf   - Êý¾ÝbufÖ¸Õë
+ * @param   sta     - ×´Ì¬ï¿½ï¿½ï¿½ï¿½
+ * @param   crc     - crcÐ£ï¿½ï¿½ï¿½ï¿½
+ * @param   rxBuf   - ï¿½ï¿½ï¿½ï¿½bufÖ¸ï¿½ï¿½
  *
  * @return  none
  */
@@ -118,14 +150,17 @@ void RF_2G4StatusCallBack(uint8_t sta, uint8_t crc, uint8_t *rxBuf)
                        tmos_set_event(usbTaskID, USB_VOL_EVENT);
                     }
                     else if(rxBuf[3]==0xE2){
-                       PRINT("rxBuf:%d",rxBuf[1]);
-                       for (int ar = 0; ar < 32; ++ar) {
-                          PRINT("%x ",rxBuf[ar+4]);
-                       }
-                       PRINT("\r\n");
-                       vial_out_flag = 0;
-                       tmos_memcpy(Dongle_data.RXBUFF_vol,&rxBuf[4], 32);
-                       tmos_set_event(usbTaskID, USB_VIAL_EP2_EVENT);
+                        PRINT("rxBuf:%d",rxBuf[1]);
+                        for (int ar = 0; ar < 32; ++ar) {
+                           PRINT("%x ",rxBuf[ar+4]);
+                        }
+                        PRINT("\r\n");
+                        vial_out_flag = 0;
+                        tmos_memcpy(Dongle_data.RXBUFF_vol,&rxBuf[4], 32);
+                        tmos_set_event(usbTaskID, USB_VIAL_EP2_EVENT);
+                    }
+                    else if(rxBuf[3]==0xBE){
+                        tmos_set_event(RFtaskID, SBP_unbind_EVT);
                     }
                }
                else if(rxBuf[2]==0x96)       //jump boot and ISP
@@ -142,7 +177,7 @@ void RF_2G4StatusCallBack(uint8_t sta, uint8_t crc, uint8_t *rxBuf)
             if (time_out_flag>=200) {
                 RF_Bounding_flag = 0;
                 time_out_flag=0;
-                tmos_memset(Dongle_data.RXBUFF_key, 0, 8); //¶Ï¿ªÇåÁãÒ»´Î
+                tmos_memset(Dongle_data.RXBUFF_key, 0, 8); //ï¿½Ï¿ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½
                 tmos_set_event(usbTaskID, USB_KEYBOARD_EVENT);
                 tmos_stop_task(RFtaskID, SBP_heartbeat_EVT);
                 tmos_start_task(RFtaskID, SBP_nobounding_EVT,0);
@@ -181,12 +216,12 @@ void RF_2G4StatusCallBack(uint8_t sta, uint8_t crc, uint8_t *rxBuf)
 /*********************************************************************
  * @fn      RF_ProcessEvent
  *
- * @brief   RF ÊÂ¼þ´¦Àí
+ * @brief   RF ï¿½Â¼ï¿½ï¿½ï¿½ï¿½ï¿½
  *
- * @param   task_id - ÈÎÎñID
- * @param   events  - ÊÂ¼þ±êÖ¾
+ * @param   task_id - ï¿½ï¿½ï¿½ï¿½ID
+ * @param   events  - ï¿½Â¼ï¿½ï¿½ï¿½Ö¾
  *
- * @return  Î´Íê³ÉÊÂ¼þ
+ * @return  Î´ï¿½ï¿½ï¿½ï¿½Â¼ï¿½
  */
 uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
 {
@@ -207,8 +242,9 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
         RF_Shut();
         bounding_mac = device_mac_32+dongle_mac_32;
         RF_Bounding_flag = 1;
+        Dongle_BindFlash_Write(bounding_mac);
         RF_Init(bounding_mac);
-//        tmos_start_task( usbTaskID, START_USB_EVENT, 0 );//´ò¿ªusbÖÐ¶Ï
+//        tmos_start_task( usbTaskID, START_USB_EVENT, 0 );//å¼€usbä¸­æ–­
         return events ^ SBP_bounding_EVT;
     }
     if(events & SBP_nobounding_EVT)
@@ -216,8 +252,18 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
         RF_Shut();
         RF_Bounding_flag = 0;
         RF_Init(0x82531829);
-//        tmos_start_task( usbTaskID, STOP_USB_EVENT, 0 );//¹Ø±ÕusbÖÐ¶Ï
+//        tmos_start_task( usbTaskID, STOP_USB_EVENT, 0 );//å…³é—­usbä¸­æ–­
         return events ^ SBP_nobounding_EVT;
+    }
+    if(events & SBP_unbind_EVT)
+    {
+        RF_Shut();
+        RF_Bounding_flag = 0;
+        Dongle_BindFlash_Erase();
+        tmos_stop_task(RFtaskID, SBP_heartbeat_EVT);
+        RF_Init(0x82531829);
+        PRINT("dongle unbind\n");
+        return events ^ SBP_unbind_EVT;
     }
     if(events & SBP_RF_RF_RX_EVT)
     {
@@ -271,7 +317,7 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
 /*********************************************************************
  * @fn      RF_Init
  *
- * @brief   RF ³õÊ¼»¯
+ * @brief   RF ï¿½ï¿½Ê¼ï¿½ï¿½
  *
  * @return  none
  */
@@ -280,11 +326,12 @@ void RF_Init(uint32_t RF_ADD)
     rfConfig_t rfConfig;
     tmos_memset(&rfConfig, 0, sizeof(rfConfig_t));
     RFtaskID = TMOS_ProcessEventRegister(RF_ProcessEvent);
-    rfConfig.accessAddress = RF_ADD; // ½ûÖ¹Ê¹ÓÃ0x55555555ÒÔ¼°0xAAAAAAAA ( ½¨Òé²»³¬¹ý24´ÎÎ»·´×ª£¬ÇÒ²»³¬¹ýÁ¬ÐøµÄ6¸ö0»ò1 )
+
+    rfConfig.accessAddress = RF_ADD;
     rfConfig.CRCInit = 0x555555;
     rfConfig.Channel = 8;
     rfConfig.Frequency = 2405000;
-    rfConfig.LLEMode = LLE_MODE_AUTO | LLE_MODE_EX_CHANNEL; // Ê¹ÄÜ LLE_MODE_EX_CHANNEL ±íÊ¾ Ñ¡Ôñ rfConfig.Frequency ×÷ÎªÍ¨ÐÅÆµµã
+    rfConfig.LLEMode = LLE_MODE_AUTO | LLE_MODE_EX_CHANNEL;
     rfConfig.rfStatusCB = RF_2G4StatusCallBack;
     rfConfig.RxMaxlen = 251;
     RF_Config(&rfConfig);

@@ -1,7 +1,7 @@
 /*
  * RF_MODE.h
  *
- *  Created on: 2024年12月13日
+ *  Created on: 2024锟斤拷12锟斤拷13锟斤拷
  *      Author: OWNER
  */
 
@@ -15,7 +15,9 @@
 #define SBP_RF_BIND_EVT            0x0020
 #define SBP_RF_REBIND_EVT          0x0040
 #define SBP_RF_RF_RX_EVT           0x0100
-#define LLE_MODE_ORIGINAL_RX       (0x80) //如果配置LLEMODE时加上此宏，则接收第一字节为原始数据（原来为RSSI）
+#define SBP_RF_LED_EVT             0x0200
+#define RF_BIND_FLASH_ADDR         0x7C00
+#define LLE_MODE_ORIGINAL_RX       (0x80) //锟斤拷锟斤拷锟斤拷锟絃LEMODE时锟斤拷锟较此宏，锟斤拷锟斤拷盏锟揭伙拷纸锟轿硷拷锟斤拷荩锟皆拷锟轿猂SSI锟斤拷
 
 extern void RF_Init(void);
 
