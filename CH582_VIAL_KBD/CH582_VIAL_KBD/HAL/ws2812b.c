@@ -144,7 +144,10 @@ void Ws2812_move_control(uint32_t *color_buf,RGB_move_control mode,uint32_t len)
  */
 void PWM_DATA_DMA_send(uint32_t* Pwmout_buf_start,uint32_t len)
 {
-    TMR2_Enable();
+    // Configure DMA before starting the timer.
+    // If the timer is started first, an RF interrupt can land before the
+    // DMA is enabled and the timer emits a few default-duty bits, which
+    // shifts the whole WS2812 frame (yellow->purple/blue, red->blue, ...).
     //以下DMA配置与输出操作最好使用寄存器操作，库函数有问题
     R16_TMR2_DMA_BEG = (uint32_t)Pwmout_buf_start;  //DMA起始地址
     R16_TMR2_DMA_END = (uint32_t)(Pwmout_buf_start+len);    //DMA结束地址
@@ -153,6 +156,7 @@ void PWM_DATA_DMA_send(uint32_t* Pwmout_buf_start,uint32_t len)
     TMR2_ClearITFlag(TMR1_2_IT_DMA_END);
     TMR2_ITCfg(ENABLE, TMR1_2_IT_DMA_END);
     PFIC_EnableIRQ(TMR2_IRQn);
+    TMR2_Enable();
 }
 
 /*********************************************************************
@@ -177,6 +181,7 @@ void TMR2_IRQHandler(void)
         TMR2_ClearITFlag(TMR1_2_IT_DMA_END);
         TMR2_Disable();
         TMR2_PWMDisable();
+        GPIOA_ResetBits(GPIO_Pin_11);
         TMR2_ITCfg(DISABLE, TMR1_2_IT_DMA_END);
         PFIC_DisableIRQ(TMR2_IRQn);
         /* DMA 结束 */
