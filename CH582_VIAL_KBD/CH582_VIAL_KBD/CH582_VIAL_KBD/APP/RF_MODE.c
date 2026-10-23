@@ -324,31 +324,31 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
        }
        return (events ^ SBP_dongle_boot_EVT);
     }
-    if(events & SBP_RF_LED_EVT)
-    {
-        rf_led_blink_state = !rf_led_blink_state;
-        tmos_start_task(RF_taskID, SBP_RF_LED_EVT, MS1_TO_SYSTEM_TIME(500));
-        return (events ^ SBP_RF_LED_EVT);
-    }
     if(events & WS2812_EVENT)
     {
         static __attribute__((aligned(4))) uint32_t led_buf[17];
+        static uint8_t blink_tick = 0;
         uint32_t status_color, base_color;
+        blink_tick++;
+        if (blink_tick >= 2) {
+            blink_tick = 0;
+            rf_led_blink_state = !rf_led_blink_state;
+        }
         if (rf_pairing_mode) {
-            base_color = 0x000000;
+            base_color = 0x080800;
             status_color = rf_led_blink_state ? 0x000008 : 0x000000;
         } else if (RF_Bounding_flag && rf_lost_count < 100) {
-            base_color = 0x080800;
-            status_color = 0x080800;
+            base_color = 0x000800;
+            status_color = 0x000800;
         } else {
-            base_color = 0x000000;
-            status_color = rf_led_blink_state ? 0x000800 : 0x000000;
+            base_color = 0x080800;
+            status_color = rf_led_blink_state ? 0x080000 : 0x000000;
         }
         for (int i = 0; i < 17; i++) led_buf[i] = base_color;
         led_buf[16] = status_color;
         process_RGB_to_pwm(led_buf, 17, Pwmout_buf);
         PWM_DATA_DMA_send(Pwmout_buf,sizeof(Pwmout_buf));
-        tmos_start_task(RF_taskID, WS2812_EVENT, MS1_TO_SYSTEM_TIME(150));
+        tmos_start_task(RF_taskID, WS2812_EVENT, MS1_TO_SYSTEM_TIME(125));
         return (events ^ WS2812_EVENT);
     }
 
@@ -426,7 +426,6 @@ void RF_Init(void)
 
     PRINT("rf bind mac: %x\n", keyboard_mac_32);
     tmos_start_task(RF_taskID, SBP_RF_kbd_data_EVT, MS1_TO_SYSTEM_TIME(8));
-    tmos_start_task(RF_taskID, SBP_RF_LED_EVT, MS1_TO_SYSTEM_TIME(500));
-    tmos_start_task(RF_taskID, WS2812_EVENT, MS1_TO_SYSTEM_TIME(150));
+    tmos_start_task(RF_taskID, WS2812_EVENT, MS1_TO_SYSTEM_TIME(125));
 }
 /******************************** endfile @ main ******************************/
