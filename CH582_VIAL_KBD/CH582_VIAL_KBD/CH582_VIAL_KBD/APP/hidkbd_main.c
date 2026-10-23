@@ -86,12 +86,12 @@ int main(void)
     if (key_mode==0x0B)
     {
         process_RGB_to_pwm(flowing_buf_usb, 17, Pwmout_buf);
-        PWM_DATA_DMA_send(Pwmout_buf, WS2812_PWM_WORDS);
+        PWM_DATA_DMA_send(Pwmout_buf,sizeof(Pwmout_buf));
         USB_INIT();
     }
     else if (key_mode==0xBE) {  //BLE MODE
         process_RGB_to_pwm(flowing_buf_ble, 17, Pwmout_buf);
-        PWM_DATA_DMA_send(Pwmout_buf, WS2812_PWM_WORDS);
+        PWM_DATA_DMA_send(Pwmout_buf,sizeof(Pwmout_buf));
         PWR_DCDCCfg(ENABLE);
         CH58X_BLEInit();
         HAL_Init();
@@ -101,7 +101,7 @@ int main(void)
     }
     else if (key_mode==0x24) {  //2.4G mode
         process_RGB_to_pwm(flowing_buf_24, 17, Pwmout_buf);
-        PWM_DATA_DMA_send(Pwmout_buf, WS2812_PWM_WORDS);
+        PWM_DATA_DMA_send(Pwmout_buf,sizeof(Pwmout_buf));
         PWR_DCDCCfg(ENABLE);
         CH58X_BLEInit();
         HAL_Init();
