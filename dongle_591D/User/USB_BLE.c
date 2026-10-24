@@ -27,6 +27,14 @@ uint8_t key_chang_data[32] = {0};
 //uint8_t scan_flag = 0;
 uint8_t rgb_flag = 0;
 volatile uint8_t vial_out_flag = 0;
+/* Local keymap buffer for VIAL (5x4 matrix, HID keycodes) */
+static uint8_t dongle_keymap[20] = {
+    0x53, 0x54, 0x55, 0x56,
+    0x5F, 0x60, 0x61, 0x57,
+    0x5C, 0x5D, 0x5E, 0x00,
+    0x59, 0x5A, 0x5B, 0x58,
+    0x62, 0x00, 0x63, 0x58,
+};
 // Éè±¸ÃèÊö·û
 const uint8_t MyDevDescr[] = {0x12,0x01,0x00,0x02,0x00,0x00,
                               0x00,0x40,0x73,0x92,0x57,0x91,
@@ -983,7 +991,31 @@ static uint8_t VIAL_Proxy(const uint8_t *in, uint8_t *out)
         out[0] = in[0];
         return 1;
     }
-    return 0;   /* 0x12 keymap / 0x05 set-key are tunneled to the keyboard */
+    if (in[0] == 0x12) {            /* KEYMAP_GET_BUFFER - serve locally */
+        uint16_t off = ((uint16_t)in[1] << 8) | in[2];
+        uint8_t  sz  = in[3];
+        if (sz > 28) sz = 28;
+        out[0] = 0x12;
+        out[1] = in[1];
+        out[2] = in[2];
+        out[3] = sz;
+        for (i = 0; i < sz; i++) {
+            uint16_t o = off + i;
+            uint16_t idx = o >> 1;
+            uint8_t  kc = 0;
+            if (idx < 20) kc = dongle_keymap[idx];
+            out[4 + i] = (o & 1) ? kc : 0;
+        }
+        return 1;
+    }
+    if (in[0] == 0x05) {            /* SET_KEYCODE - update local, tunnel to kbd */
+        uint8_t row = in[2];
+        uint8_t col = in[3];
+        if (row < 5 && col < 4) {
+            dongle_keymap[row * 4 + col] = in[5];
+        }
+    }
+    return 0;   /* 0x05 set-key and others tunneled to the keyboard */
 }
 
 void DevEP3_OUT_Deal(uint8_t l)
