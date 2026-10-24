@@ -15,6 +15,7 @@
 #include "scan_key.h"
 #include "USB_MODE.h"
 #include "VIAL.h"
+#include "vial_def.h"
 #define DevEP0SIZE    0x40
 uint8_t USB_VIAL_START = 0;
 uint8_t vial_data_count = 0;
@@ -959,6 +960,82 @@ void U2DevEP2_OUT_Deal(uint8_t l)
 
 void VIAL_HandleReport(uint8_t *in, uint8_t *out)
 {
+    uint8_t cmd = in[0];
+    uint8_t std_handled = 0;
+
+    /* ---- standard VIA/VIAL protocol (used by vial-gui) ---- */
+    if (cmd == 0x01) {              /* GET_PROTOCOL_VERSION */
+        memset(out, 0, 32);
+        out[0] = 0x01;
+        out[1] = 0x00;
+        out[2] = 0x09;              /* VIA protocol 9 */
+        std_handled = 1;
+    }
+    else if (cmd == 0x11) {         /* GET_LAYER_COUNT */
+        memset(out, 0, 32);
+        out[0] = 0x11;
+        out[1] = 1;
+        std_handled = 1;
+    }
+    else if (cmd == 0x12) {         /* DYNAMIC_KEYMAP_GET_BUFFER */
+        uint16_t off = ((uint16_t)in[1] << 8) | in[2];
+        uint8_t  sz  = in[3];
+        uint8_t  i;
+        if (sz > 28) sz = 28;
+        memset(out, 0, 32);
+        out[0] = 0x12;
+        out[1] = in[1];
+        out[2] = in[2];
+        out[3] = sz;
+        for (i = 0; i < sz; i++) {
+            uint16_t o = off + i;
+            uint16_t idx = o >> 1;
+            uint8_t  kc = 0;
+            if (idx < 20) kc = key_data_buf[idx / 4][idx % 4];
+            out[4 + i] = (o & 1) ? kc : 0;
+        }
+        std_handled = 1;
+    }
+    else if (cmd == 0xFE) {         /* VIAL command prefix */
+        uint8_t sub = in[1];
+        memset(out, 0, 32);
+        if (sub == 0x00) {          /* GET_KEYBOARD_ID */
+            out[0] = 1;             /* vial_protocol = 1 */
+            out[4] = 1;             /* keyboard_id = 1 */
+        }
+        else if (sub == 0x01) {     /* GET_SIZE (zlib payload) */
+            out[0] = (uint8_t)(VIAL_DEF_ZLIB_SIZE & 0xFF);
+            out[1] = (uint8_t)((VIAL_DEF_ZLIB_SIZE >> 8) & 0xFF);
+        }
+        else if (sub == 0x02) {     /* GET_DEFINITION block */
+            uint32_t block = (uint32_t)in[2] |
+                             ((uint32_t)in[3] << 8) |
+                             ((uint32_t)in[4] << 16) |
+                             ((uint32_t)in[5] << 24);
+            uint32_t base = block * 32u;
+            uint8_t  i;
+            for (i = 0; i < 32; i++) {
+                out[i] = (base + i < VIAL_DEF_ZLIB_SIZE) ? vial_def_zlib[base + i] : 0;
+            }
+        }
+        else if (sub == 0x05) {     /* UNLOCK_STATUS: always unlocked */
+            out[0] = 1;
+        }
+        /* other VIAL subcommands: zero response */
+        std_handled = 1;
+    }
+    else if (cmd == 0x0C || cmd == 0x0D || cmd == 0x0E) { /* macros: none */
+        memset(out, 0, 32);
+        out[0] = cmd;
+        std_handled = 1;
+    }
+    else if (cmd == 0x02 || cmd == 0x03 || cmd == 0x08 || cmd == 0x09) {
+        memset(out, 0, 32);
+        out[0] = cmd;
+        std_handled = 1;
+    }
+    if (std_handled) return;
+
     memset(out,0,32);
     memset(key_chang_data,0,32);
     if (in[0] == 0x01) {
