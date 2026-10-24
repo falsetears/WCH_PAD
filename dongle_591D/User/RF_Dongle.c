@@ -183,14 +183,18 @@ void RF_2G4StatusCallBack(uint8_t sta, uint8_t crc, uint8_t *rxBuf)
         case TX_MODE_RX_TIMEOUT: // Timeout is about 200us
         {
             time_out_flag++;
+            if (RF_Bounding_flag) {
+                // The keyboard may answer later than the short auto-TX window
+                // (VIAL reports, for example). Listen in RX mode between heartbeats.
+                tmos_start_task(RFtaskID, SBP_RF_RF_RX_EVT, 0);
+            }
             if (time_out_flag>=100) {
                 RF_SetVialDesired(0);
-                RF_Bounding_flag = 0;
                 time_out_flag=0;
-                tmos_memset(Dongle_data.RXBUFF_key, 0, 8); //�Ͽ�����һ��
+                tmos_memset(Dongle_data.RXBUFF_key, 0, 8); // clear stale report
                 tmos_set_event(usbTaskID, USB_KEYBOARD_EVENT);
-                tmos_stop_task(RFtaskID, SBP_heartbeat_EVT);
-                tmos_start_task(RFtaskID, SBP_nobounding_EVT,0);
+                // Keep the binding and stay on the bound address so the
+                // keyboard reconnects automatically when it comes back.
             }
             break;
         }
@@ -210,6 +214,10 @@ void RF_2G4StatusCallBack(uint8_t sta, uint8_t crc, uint8_t *rxBuf)
                             vial_out_flag = 0;
                             tmos_memcpy(Dongle_data.TX_VIAL_DATA,&rxBuf[4], 32);
                             tmos_set_event(usbTaskID, USB_VIAL_EP2_EVENT);
+                       }
+                       else if(rxBuf[3]==0xBE){  //unbind from keyboard
+                            RF_SetVialDesired(0);
+                            tmos_set_event(RFtaskID, SBP_unbind_EVT);
                        }
                    }
                }

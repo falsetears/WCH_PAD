@@ -217,6 +217,20 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
         rf_tx_active = 0;
         return (events ^ SBP_RF_TX_GUARD_EVT);
     }
+    if(events & SBP_RF_VIAL_EVT)
+    {
+        if (rf_vial_pending) {
+            static uint8_t tx[34];
+            rf_vial_pending = 0;
+            VIAL_HandleReport(rf_vial_in, rf_vial_out);
+            tx[0] = 0x98;
+            tx[1] = 0xE2;
+            tmos_memcpy(&tx[2], rf_vial_out, 32);
+            RF_Shut();
+            RF_TxGuarded(tx, 34);
+        }
+        return (events ^ SBP_RF_VIAL_EVT);
+    }
     if(events & SBP_RF_BIND_EVT)
     {
         if(!RF_Bounding_flag)
@@ -345,6 +359,17 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
             SYS_ResetExecute();
         }
         if (change_mode_pair == 300) {
+            /* Tell the dongle to drop the old binding while it is still
+               listening on the bound address; otherwise it would stay
+               bound and never hear the new pairing packets. */
+            if (RF_Bounding_flag && bounding_mac != 0) {
+                uint8_t unbind[2] = {0x98, 0xBE};
+                for (uint8_t n = 0; n < 3; n++) {
+                    RF_Shut();
+                    RF_Tx(unbind, 2, 0xFF, 0xFF);
+                    DelayMs(3);
+                }
+            }
             rf_pairing_mode = 1;
             RF_BindFlash_Erase();
             RF_Bounding_flag = 0;
@@ -370,20 +395,6 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
            tmos_start_task(RF_taskID, SBP_RF_RF_RX_EVT, MS1_TO_SYSTEM_TIME(2));
        }
        return (events ^ SBP_dongle_boot_EVT);
-    }
-    if(events & SBP_RF_VIAL_EVT)
-    {
-        if (rf_vial_pending) {
-            static uint8_t tx[34];
-            rf_vial_pending = 0;
-            VIAL_HandleReport(rf_vial_in, rf_vial_out);
-            tx[0] = 0x98;
-            tx[1] = 0xE2;
-            tmos_memcpy(&tx[2], rf_vial_out, 32);
-            RF_Shut();
-            RF_TxGuarded(tx, 34);
-        }
-        return (events ^ SBP_RF_VIAL_EVT);
     }
     if(events & WS2812_EVENT)
     {
