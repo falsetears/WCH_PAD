@@ -156,7 +156,7 @@ void RF_2G4StatusCallBack(uint8_t sta, uint8_t crc, uint8_t *rxBuf)
                         }
                         PRINT("\r\n");
                         vial_out_flag = 0;
-                        tmos_memcpy(Dongle_data.RXBUFF_vol,&rxBuf[4], 32);
+                        tmos_memcpy(Dongle_data.TX_VIAL_DATA,&rxBuf[4], 32);
                         tmos_set_event(usbTaskID, USB_VIAL_EP2_EVENT);
                     }
                     else if(rxBuf[3]==0xBE){
@@ -194,6 +194,11 @@ void RF_2G4StatusCallBack(uint8_t sta, uint8_t crc, uint8_t *rxBuf)
                             device_mac_32 = (device_mac[0]<<24)+(device_mac[1]<<16)+(device_mac[2]<<8)+device_mac[3];
                             PRINT("device_mac_32: %x\n",device_mac_32);
                             tmos_set_event(RFtaskID, SBP_bounding_EVT);
+                       }
+                       else if(rxBuf[3]==0xE2){  //VIAL response
+                            vial_out_flag = 0;
+                            tmos_memcpy(Dongle_data.TX_VIAL_DATA,&rxBuf[4], 32);
+                            tmos_set_event(usbTaskID, USB_VIAL_EP2_EVENT);
                        }
                    }
                }

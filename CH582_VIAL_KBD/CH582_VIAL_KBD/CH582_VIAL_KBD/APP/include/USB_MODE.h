@@ -9,5 +9,6 @@
 #define INCLUDE_USB_MODE_H_
 
 void USB_INIT(void);
+void VIAL_HandleReport(uint8_t *in, uint8_t *out);
 
 #endif /* INCLUDE_USB_MODE_H_ */

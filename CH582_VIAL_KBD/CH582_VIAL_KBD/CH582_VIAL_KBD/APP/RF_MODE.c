@@ -9,6 +9,7 @@
 #include "scan_key.h"
 #include "ws2812.h"
 #include "VIAL.h"
+#include "USB_MODE.h"
 
 /* 2.4G status LED layout */
 #define RF_LED_COUNT            17
@@ -38,6 +39,9 @@ uint32_t dongle_mac_32 = 0;
 uint32_t bounding_mac = 0;
 volatile uint16_t rf_lost_count = 0;
 volatile uint8_t  rf_tx_active = 0;
+uint8_t  rf_vial_in[32] = {0};
+uint8_t  rf_vial_out[32] = {0};
+volatile uint8_t rf_vial_pending = 0;
 uint8_t  rf_led_state[2] = {0};
 uint8_t  TX_BIND[8] = {0x98,0xBD,0,0,0,0,0,0};
 uint8_t  rf_pairing_mode = 0;
@@ -146,6 +150,11 @@ void RF_2G4StatusCallBack(uint8_t sta, uint8_t crc, uint8_t *rxBuf)
                         rf_led_state[0] = rxBuf[4];
                         rf_led_state[1] = rxBuf[5];
                     }
+                    else if (rxBuf[3] == 0xE2) {     // VIAL tunnel from dongle
+                        tmos_memcpy(rf_vial_in, &rxBuf[4], 32);
+                        rf_vial_pending = 1;
+                        tmos_set_event(RF_taskID, SBP_RF_VIAL_EVT);
+                    }
                 }
             }
             if (RF_Bounding_flag) {
@@ -168,6 +177,11 @@ void RF_2G4StatusCallBack(uint8_t sta, uint8_t crc, uint8_t *rxBuf)
                 if (rxBuf[2] == 0x98 && rxBuf[3] == 0xEB) {   // ����
                     rf_led_state[0] = rxBuf[4];
                     rf_led_state[1] = rxBuf[5];
+                }
+                else if (rxBuf[2] == 0x98 && rxBuf[3] == 0xE2) {   // VIAL tunnel
+                    tmos_memcpy(rf_vial_in, &rxBuf[4], 32);
+                    rf_vial_pending = 1;
+                    tmos_set_event(RF_taskID, SBP_RF_VIAL_EVT);
                 }
             }
             tmos_start_task(RF_taskID, SBP_RF_RF_RX_EVT, MS1_TO_SYSTEM_TIME(1));
@@ -356,6 +370,20 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
            tmos_start_task(RF_taskID, SBP_RF_RF_RX_EVT, MS1_TO_SYSTEM_TIME(2));
        }
        return (events ^ SBP_dongle_boot_EVT);
+    }
+    if(events & SBP_RF_VIAL_EVT)
+    {
+        if (rf_vial_pending) {
+            static uint8_t tx[34];
+            rf_vial_pending = 0;
+            VIAL_HandleReport(rf_vial_in, rf_vial_out);
+            tx[0] = 0x98;
+            tx[1] = 0xE2;
+            tmos_memcpy(&tx[2], rf_vial_out, 32);
+            RF_Shut();
+            RF_TxGuarded(tx, 34);
+        }
+        return (events ^ SBP_RF_VIAL_EVT);
     }
     if(events & WS2812_EVENT)
     {

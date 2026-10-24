@@ -957,11 +957,11 @@ void U2DevEP2_OUT_Deal(uint8_t l)
  * @return  none
  */
 
-void U2DevEP3_OUT_Deal(uint8_t l)
+void VIAL_HandleReport(uint8_t *in, uint8_t *out)
 {
-    memset(pU2EP2_IN_DataBuf,0,32);
+    memset(out,0,32);
     memset(key_chang_data,0,32);
-    if (pU2EP3_OUT_DataBuf[0] == 0x01) {
+    if (in[0] == 0x01) {
         USB_VIAL_START = 1;
     }
     if (vial_data_count == 77) {
@@ -969,8 +969,8 @@ void U2DevEP3_OUT_Deal(uint8_t l)
         vial_data_count = 0;
     }
     if (USB_VIAL_START == 1) { //vial支持处理，闭源
-        if (pU2EP3_OUT_DataBuf[0] == 0x12) {
-            if (pU2EP3_OUT_DataBuf[2] == 0) {
+        if (in[0] == 0x12) {
+            if (in[2] == 0) {
                 key_chang_data[0] = 0x12;
                 key_chang_data[3] = 0x1c;
                 key_chang_data[5] = key_data_buf[0][0];
@@ -989,10 +989,10 @@ void U2DevEP3_OUT_Deal(uint8_t l)
 
                 key_chang_data[29] = key_data_buf[3][0];
                 key_chang_data[31] = key_data_buf[3][1];
-                memcpy(pU2EP2_IN_DataBuf,key_chang_data,32);
+                memcpy(out,key_chang_data,32);
                 vial_data_count ++;
             }
-            else if (pU2EP3_OUT_DataBuf[2] == 0x1c) {
+            else if (in[2] == 0x1c) {
                 key_chang_data[0] = 0x12;
                 key_chang_data[2] = 0x1c;
                 key_chang_data[3] = 0x1c;
@@ -1008,33 +1008,38 @@ void U2DevEP3_OUT_Deal(uint8_t l)
                 key_chang_data[27] = 0x04;
                 key_chang_data[29] = 0x04;
                 key_chang_data[31] = key_data_buf[3][1];
-                memcpy(pU2EP2_IN_DataBuf,key_chang_data,32);
+                memcpy(out,key_chang_data,32);
                 vial_data_count ++;
             }
             else {
-                FLASH_DATA_VIAL((uint32_t)(vial_data_count*32), pU2EP2_IN_DataBuf);
+                FLASH_DATA_VIAL((uint32_t)(vial_data_count*32), out);
                 vial_data_count ++;
             }
         }
         else {
-             FLASH_DATA_VIAL((vial_data_count*32), pU2EP2_IN_DataBuf);
+             FLASH_DATA_VIAL((vial_data_count*32), out);
              vial_data_count ++;
         }
     }
     else {//改键层处理
-        switch(pU2EP3_OUT_DataBuf[0])
+        switch(in[0])
         {
            case 0x05:
-              Debonding_layer_cfg(pU2EP3_OUT_DataBuf);
-              memcpy(pU2EP2_IN_DataBuf,pU2EP3_OUT_DataBuf,32);
+              Debonding_layer_cfg(in);
+              memcpy(out,in,32);
               break;
            default:
            {
-               memcpy(pU2EP2_IN_DataBuf,pU2EP3_OUT_DataBuf,32);
+               memcpy(out,in,32);
            }
                break;
         }
     }
+}
+void U2DevEP3_OUT_Deal(uint8_t l)
+{
+    (void)l;
+    VIAL_HandleReport(pU2EP3_OUT_DataBuf, pU2EP2_IN_DataBuf);
     U2DevEP2_IN_Deal(32);
 }
 
