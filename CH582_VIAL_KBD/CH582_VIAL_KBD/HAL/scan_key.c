@@ -104,7 +104,7 @@ static const uint8_t default_key_layout[5][4] = {
     {HID_KEYBPAD_NUM_LOCK, HID_KEYBPAD_DIVIDE, HID_KEYBOARD_MULTIPLY, HID_KEYBOARD_SUBTRACT},
     {HID_KEYBPAD_7,        HID_KEYBPAD_8,      HID_KEYBPAD_9,         HID_KEYBPAD_ADD},
     {HID_KEYBPAD_4,        HID_KEYBPAD_5,      HID_KEYBPAD_6,         0x00},
-    {HID_KEYBPAD_1,        HID_KEYBPAD_2,      HID_KEYBPAD_3,         0x00},
+    {HID_KEYBPAD_1,        HID_KEYBPAD_2,      HID_KEYBPAD_3,         HID_KEYBPAD_ENTER},
     {HID_KEYBPAD_0,        0x00,               HID_KEYBPAD_DOT,       HID_KEYBPAD_ENTER},
 };
 
@@ -112,7 +112,7 @@ uint8_t key_data_buf[5][4]={   //[Y][X]
         HID_KEYBPAD_NUM_LOCK, HID_KEYBPAD_DIVIDE, HID_KEYBOARD_MULTIPLY, HID_KEYBOARD_SUBTRACT,
         HID_KEYBPAD_7,        HID_KEYBPAD_8,      HID_KEYBPAD_9,         HID_KEYBPAD_ADD,
         HID_KEYBPAD_4,        HID_KEYBPAD_5,      HID_KEYBPAD_6,         0x00,
-        HID_KEYBPAD_1,        HID_KEYBPAD_2,      HID_KEYBPAD_3,         0x00,
+        HID_KEYBPAD_1,        HID_KEYBPAD_2,      HID_KEYBPAD_3,         HID_KEYBPAD_ENTER,
         HID_KEYBPAD_0,        0x00,               HID_KEYBPAD_DOT,       HID_KEYBPAD_ENTER,
 };
 uint8_t key_data_buf_1[5][4]={   //[Y][X]

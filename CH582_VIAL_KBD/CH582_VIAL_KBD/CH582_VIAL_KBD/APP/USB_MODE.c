@@ -1245,13 +1245,8 @@ void Debonding_layer_cfg(uint8_t *pbuf)
             break;
     }
     if (pbuf[4] == 0) {
-        if (pbuf[2]==2&&pbuf[3]==3) {
-            key_data_buf[1][3]= pbuf[5];
-        }
-        else if (pbuf[2]==4&&pbuf[3]==1) {
-            key_data_buf[4][2]= pbuf[5];
-        }
-        else if (pbuf[2]==4&&pbuf[3]==2) {
+        if (pbuf[2]==3&&pbuf[3]==3) {
+            key_data_buf[3][3]= pbuf[5];
             key_data_buf[4][3]= pbuf[5];
         }
         else {
