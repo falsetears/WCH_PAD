@@ -9,6 +9,7 @@
  *******************************************************************************/
 
 #include "CONFIG.h"
+#include "vial_def.h"
 #include "USB_BLE.h"
 #include "RF_Dongle.h"
 
@@ -25,7 +26,7 @@ tmosTaskID usbTaskID=INVALID_TASK_ID;
 uint8_t key_chang_data[32] = {0};
 //uint8_t scan_flag = 0;
 uint8_t rgb_flag = 0;
-uint8_t vial_out_flag = 0;
+volatile uint8_t vial_out_flag = 0;
 // Éè±¸ÃèÊö·û
 const uint8_t MyDevDescr[] = {0x12,0x01,0x00,0x02,0x00,0x00,
                               0x00,0x40,0x73,0x92,0x57,0x91,
@@ -942,6 +943,49 @@ void DevEP2_OUT_Deal( UINT8 l )
 * Input          : None
 * Return         : None
 *******************************************************************************/
+static uint8_t VIAL_Proxy(const uint8_t *in, uint8_t *out)
+{
+    uint8_t i;
+    memset(out, 0, 32);
+    if (in[0] == 0x01) {            /* GET_PROTOCOL_VERSION */
+        out[0] = 0x01; out[1] = 0x00; out[2] = 0x09;
+        return 1;
+    }
+    if (in[0] == 0x11) {            /* GET_LAYER_COUNT */
+        out[0] = 0x11; out[1] = 1;
+        return 1;
+    }
+    if (in[0] == 0xFE) {            /* VIAL prefix */
+        if (in[1] == 0x00) {        /* keyboard id */
+            out[0] = 1; out[4] = 1;
+        }
+        else if (in[1] == 0x01) {   /* definition size */
+            out[0] = (uint8_t)(VIAL_DEF_SIZE & 0xFF);
+            out[1] = (uint8_t)((VIAL_DEF_SIZE >> 8) & 0xFF);
+        }
+        else if (in[1] == 0x02) {   /* definition block */
+            uint32_t block = (uint32_t)in[2] | ((uint32_t)in[3] << 8) |
+                             ((uint32_t)in[4] << 16) | ((uint32_t)in[5] << 24);
+            uint32_t base = block * 32u;
+            for (i = 0; i < 32; i++)
+                out[i] = (base + i < VIAL_DEF_SIZE) ? vial_def_lzma[base + i] : 0;
+        }
+        else if (in[1] == 0x05) {   /* unlock status */
+            out[0] = 1;
+        }
+        return 1;
+    }
+    if (in[0] == 0x0C || in[0] == 0x0D || in[0] == 0x0E) {
+        out[0] = in[0];
+        return 1;
+    }
+    if (in[0] == 0x02 || in[0] == 0x03 || in[0] == 0x08 || in[0] == 0x09) {
+        out[0] = in[0];
+        return 1;
+    }
+    return 0;   /* 0x12 keymap / 0x05 set-key are tunneled to the keyboard */
+}
+
 void DevEP3_OUT_Deal(uint8_t l)
 {
 //    memset(pEP2_IN_DataBuf,0,32);
@@ -951,7 +995,16 @@ void DevEP3_OUT_Deal(uint8_t l)
       }
       PRINT("\r\n");
       memcpy(Dongle_data.RX_VIAL_DATA,pEP3_OUT_DataBuf,l);
-      vial_out_flag = 1;
+      {
+          uint8_t proxy[32];
+          if (VIAL_Proxy(pEP3_OUT_DataBuf, proxy)) {
+              memcpy(Dongle_data.TX_VIAL_DATA, proxy, 32);
+              tmos_set_event(usbTaskID, USB_VIAL_EP2_EVENT);
+              vial_out_flag = 0;
+          } else {
+              vial_out_flag = 1;
+          }
+      }
 //      tmos_start_task(RFtaskID, SBP_USB_EP3RX_EVT,0);
 //    pEP3_OUT_DataBuf;
 //    U2DevEP2_IN_Deal(32);

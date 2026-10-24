@@ -20,7 +20,7 @@ tmosTaskID RFtaskID;
 uint8_t RF_Bounding_flag = 0;
 uint8_t time_out_flag = 0;
 extern Dongle_data_STRUCT Dongle_data;
-extern uint8_t vial_out_flag;
+extern volatile uint8_t vial_out_flag;
 volatile uint8_t vial_desired = 0;
 uint8_t rf_keyboard_offline = 0;
 uint8_t scan_left = 0;
@@ -212,22 +212,26 @@ void RF_2G4StatusCallBack(uint8_t sta, uint8_t crc, uint8_t *rxBuf)
                    rf_keyboard_offline = 0;
                    scan_tick = 0;
                    if (RF_Bounding_flag) RF_SetVialDesired(1);
-                   RF_Wait_Rx_End();
-                   if(rxBuf[2]==0x98) {
-                       if(rxBuf[3]==0xBD){  //Bounding
-                            tmos_memcpy(device_mac,&rxBuf[4],6);
-                            device_mac_32 = (device_mac[0]<<24)+(device_mac[1]<<16)+(device_mac[2]<<8)+device_mac[3];
-                            PRINT("device_mac_32: %x\n",device_mac_32);
-                            tmos_set_event(RFtaskID, SBP_bounding_EVT);
-                       }
-                       else if(rxBuf[3]==0xE2){  //VIAL response
-                            vial_out_flag = 0;
-                            tmos_memcpy(Dongle_data.TX_VIAL_DATA,&rxBuf[4], 32);
-                            tmos_set_event(usbTaskID, USB_VIAL_EP2_EVENT);
-                       }
-                       else if(rxBuf[3]==0xBE){  //unbind from keyboard
-                            RF_SetVialDesired(0);
-                            tmos_set_event(RFtaskID, SBP_unbind_EVT);
+                   if (rxBuf[2]==0x98 && rxBuf[3]==0xE2) {
+                       /* VIAL answer: forward immediately, without the 5 ms
+                          RF_Wait_Rx_End() delay. */
+                       vial_out_flag = 0;
+                       tmos_memcpy(Dongle_data.TX_VIAL_DATA,&rxBuf[4], 32);
+                       tmos_set_event(usbTaskID, USB_VIAL_EP2_EVENT);
+                   }
+                   else {
+                       RF_Wait_Rx_End();
+                       if(rxBuf[2]==0x98) {
+                           if(rxBuf[3]==0xBD){  //Bounding
+                                tmos_memcpy(device_mac,&rxBuf[4],6);
+                                device_mac_32 = (device_mac[0]<<24)+(device_mac[1]<<16)+(device_mac[2]<<8)+device_mac[3];
+                                PRINT("device_mac_32: %x\n",device_mac_32);
+                                tmos_set_event(RFtaskID, SBP_bounding_EVT);
+                           }
+                           else if(rxBuf[3]==0xBE){  //unbind from keyboard
+                                RF_SetVialDesired(0);
+                                tmos_set_event(RFtaskID, SBP_unbind_EVT);
+                           }
                        }
                    }
                }
