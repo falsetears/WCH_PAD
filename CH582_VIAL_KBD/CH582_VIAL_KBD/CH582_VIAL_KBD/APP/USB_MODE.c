@@ -1004,8 +1004,8 @@ void VIAL_HandleReport(uint8_t *in, uint8_t *out)
             out[4] = 1;             /* keyboard_id = 1 */
         }
         else if (sub == 0x01) {     /* GET_SIZE (zlib payload) */
-            out[0] = (uint8_t)(VIAL_DEF_ZLIB_SIZE & 0xFF);
-            out[1] = (uint8_t)((VIAL_DEF_ZLIB_SIZE >> 8) & 0xFF);
+            out[0] = (uint8_t)(VIAL_DEF_SIZE & 0xFF);
+            out[1] = (uint8_t)((VIAL_DEF_SIZE >> 8) & 0xFF);
         }
         else if (sub == 0x02) {     /* GET_DEFINITION block */
             uint32_t block = (uint32_t)in[2] |
@@ -1015,7 +1015,7 @@ void VIAL_HandleReport(uint8_t *in, uint8_t *out)
             uint32_t base = block * 32u;
             uint8_t  i;
             for (i = 0; i < 32; i++) {
-                out[i] = (base + i < VIAL_DEF_ZLIB_SIZE) ? vial_def_zlib[base + i] : 0;
+                out[i] = (base + i < VIAL_DEF_SIZE) ? vial_def_lzma[base + i] : 0;
             }
         }
         else if (sub == 0x05) {     /* UNLOCK_STATUS: always unlocked */
