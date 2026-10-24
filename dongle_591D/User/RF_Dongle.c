@@ -22,6 +22,10 @@ uint8_t time_out_flag = 0;
 extern Dongle_data_STRUCT Dongle_data;
 extern uint8_t vial_out_flag;
 volatile uint8_t vial_desired = 0;
+uint8_t rf_keyboard_offline = 0;
+uint8_t scan_left = 0;
+uint16_t scan_tick = 0;
+uint8_t scan_on_default = 0;
 volatile uint8_t tx_end_flag=0;
 volatile uint8_t rx_end_flag=0;
 uint32_t bounding_mac = 0;
@@ -147,6 +151,8 @@ void RF_2G4StatusCallBack(uint8_t sta, uint8_t crc, uint8_t *rxBuf)
             time_out_flag = 0;
 //           PRINT("rx\r\n");
             if (crc == 0) {
+                rf_keyboard_offline = 0;
+                scan_tick = 0;
                 if (RF_Bounding_flag) RF_SetVialDesired(1);
                 if(rxBuf[2]==0x98) {
 
@@ -190,6 +196,8 @@ void RF_2G4StatusCallBack(uint8_t sta, uint8_t crc, uint8_t *rxBuf)
             }
             if (time_out_flag>=100) {
                 RF_SetVialDesired(0);
+                rf_keyboard_offline = 1;
+                scan_tick = 0;
                 time_out_flag=0;
                 tmos_memset(Dongle_data.RXBUFF_key, 0, 8); // clear stale report
                 tmos_set_event(usbTaskID, USB_KEYBOARD_EVENT);
@@ -201,6 +209,8 @@ void RF_2G4StatusCallBack(uint8_t sta, uint8_t crc, uint8_t *rxBuf)
         case RX_MODE_RX_DATA:
         {
             if (crc == 0) {
+                   rf_keyboard_offline = 0;
+                   scan_tick = 0;
                    if (RF_Bounding_flag) RF_SetVialDesired(1);
                    RF_Wait_Rx_End();
                    if(rxBuf[2]==0x98) {
@@ -247,6 +257,21 @@ void RF_2G4StatusCallBack(uint8_t sta, uint8_t crc, uint8_t *rxBuf)
  *
  * @return  δ����¼�
  */
+static void RF_ConfigAddr(uint32_t addr)
+{
+    rfConfig_t cfg;
+    tmos_memset(&cfg, 0, sizeof(rfConfig_t));
+    cfg.accessAddress = addr;
+    cfg.CRCInit = 0x555555;
+    cfg.Channel = 8;
+    cfg.Frequency = 2405000;
+    cfg.LLEMode = LLE_MODE_AUTO | LLE_MODE_EX_CHANNEL;
+    cfg.rfStatusCB = RF_2G4StatusCallBack;
+    cfg.RxMaxlen = 251;
+    RF_Shut();
+    RF_Config(&cfg);
+}
+
 uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
 {
     if(events & SBP_vial_state_EVT)
@@ -268,6 +293,10 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
     }
     if(events & SBP_bounding_EVT)
     {
+        rf_keyboard_offline = 0;
+        scan_left = 0;
+        scan_tick = 0;
+        scan_on_default = 0;
         RF_Shut();
         bounding_mac = device_mac_32+dongle_mac_32;
         RF_Bounding_flag = 1;
@@ -278,6 +307,10 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
     }
     if(events & SBP_nobounding_EVT)
     {
+        rf_keyboard_offline = 0;
+        scan_left = 0;
+        scan_tick = 0;
+        scan_on_default = 0;
         RF_SetVialDesired(0);
         RF_Shut();
         RF_Bounding_flag = 0;
@@ -287,6 +320,10 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
     }
     if(events & SBP_unbind_EVT)
     {
+        rf_keyboard_offline = 0;
+        scan_left = 0;
+        scan_tick = 0;
+        scan_on_default = 0;
         RF_SetVialDesired(0);
         RF_Shut();
         RF_Bounding_flag = 0;
@@ -307,6 +344,36 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
     }
     if(events & SBP_heartbeat_EVT)
     {
+        if (RF_Bounding_flag && rf_keyboard_offline) {
+            if (scan_left) {
+                scan_left--;
+                if (scan_left == 0) {
+                    scan_on_default = 0;
+                    RF_ConfigAddr(bounding_mac);
+                    rx_end_flag = FALSE;
+                    RF_Rx(dongle_mac, 8, 0xFF, 0xFF);
+                }
+                tmos_start_task(RFtaskID, SBP_heartbeat_EVT, MS1_TO_SYSTEM_TIME(10));
+                return events ^ SBP_heartbeat_EVT;
+            }
+            if (++scan_tick >= 100) {
+                scan_tick = 0;
+                scan_left = 5;
+                scan_on_default = 1;
+                RF_ConfigAddr(0x82531829);
+                rx_end_flag = FALSE;
+                RF_Rx(dongle_mac, 8, 0xFF, 0xFF);
+                tmos_start_task(RFtaskID, SBP_heartbeat_EVT, MS1_TO_SYSTEM_TIME(10));
+                return events ^ SBP_heartbeat_EVT;
+            }
+        } else if (scan_on_default) {
+            scan_on_default = 0;
+            scan_left = 0;
+            scan_tick = 0;
+            RF_ConfigAddr(bounding_mac);
+            rx_end_flag = FALSE;
+            RF_Rx(dongle_mac, 8, 0xFF, 0xFF);
+        }
         RF_Shut();
         if (vial_out_flag == 1) {
             vial_out_flag = 0;
