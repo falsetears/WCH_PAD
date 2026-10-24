@@ -197,6 +197,8 @@ const uint8_t vial_Desc[] = {
         0x91, 0x02,        //   Output (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
         0xC0,              // End Collection
 };
+uint8_t vial_Desc_ram[sizeof(vial_Desc)];
+volatile uint8_t vial_enabled = 0;
 const uint8_t Consumer_Desc[] = {
         0x05, 0x01,        // Usage Page (Generic Desktop Ctrls)
         0x09, 0x02,        // Usage (Mouse)
@@ -510,7 +512,7 @@ void USB_DevTransProcess(void)
 
                                 else if(((pSetupReqPak->wIndex) & 0xff) == 1) //接口1报表描述符
                                 {
-                                    pDescr = vial_Desc; //数据准备上传
+                                    pDescr = vial_Desc_ram; //usage page may be switched
                                     len = sizeof(vial_Desc);
                                 }
                                 else if(((pSetupReqPak->wIndex) & 0xff) == 2) //接口1报表描述符
@@ -854,8 +856,31 @@ tmosEvents USB_ProcessEvent( tmosTaskID task_id, tmosEvents events )
 * Input          : None
 * Return         : None
 *******************************************************************************/
+static void USB_ReEnumerate(void)
+{
+    PFIC_DisableIRQ(USB_IRQn);
+    R8_USB_CTRL &= ~RB_UC_DEV_PU_EN;
+    R16_PIN_ANALOG_IE &= ~(RB_PIN_USB_IE | RB_PIN_USB_DP_PU);
+    R8_UDEV_CTRL &= ~RB_UD_PORT_EN;
+    mDelaymS(20);
+    USB_DeviceInit();
+    PFIC_EnableIRQ(USB_IRQn);
+}
+
+void USB_SetVialEnabled(uint8_t en)
+{
+    if (vial_enabled == en) return;
+    vial_enabled = en;
+    // 0x60 -> usage page 0xFF60 (VIAL), 0x61 -> 0xFF61 (not VIAL)
+    vial_Desc_ram[1] = en ? 0x60 : 0x61;
+    USB_ReEnumerate();
+}
+
 void HAL_USBInit( void )
 {
+  memcpy(vial_Desc_ram, vial_Desc, sizeof(vial_Desc));
+  vial_Desc_ram[1] = 0x61;  // no keyboard yet: do not look like a VIAL device
+  vial_enabled = 0;
   usbTaskID = TMOS_ProcessEventRegister( USB_ProcessEvent );
   pEP0_RAM_Addr = EP0_Databuf;
   pEP1_RAM_Addr = EP1_Databuf;

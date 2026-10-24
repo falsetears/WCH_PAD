@@ -26,6 +26,7 @@ extern "C" {
 #define SBP_nobounding_EVT         0x0040
 #define SBP_USB_EP3RX_EVT          0x0080
 #define SBP_unbind_EVT             0x0100
+#define SBP_vial_state_EVT         0x0200
 #define RF_BIND_FLASH_ADDR         0x7C00
 #define HEARTBEAT_CNT_MAX          20       // ��λ��ms
 #define LLE_MODE_ORIGINAL_RX       (0x80)   // �������LLEMODEʱ���ϴ˺꣬����յ�һ�ֽ�Ϊԭʼ���ݣ�ԭ��ΪRSSI��

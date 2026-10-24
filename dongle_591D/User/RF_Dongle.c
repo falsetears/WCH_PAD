@@ -21,6 +21,7 @@ uint8_t RF_Bounding_flag = 0;
 uint8_t time_out_flag = 0;
 extern Dongle_data_STRUCT Dongle_data;
 extern uint8_t vial_out_flag;
+volatile uint8_t vial_desired = 0;
 volatile uint8_t tx_end_flag=0;
 volatile uint8_t rx_end_flag=0;
 uint32_t bounding_mac = 0;
@@ -121,6 +122,13 @@ void RF_Wait_Rx_End()
  *
  * @return  none
  */
+static void RF_SetVialDesired(uint8_t desired)
+{
+    if (vial_desired == desired) return;
+    vial_desired = desired;
+    tmos_set_event(RFtaskID, SBP_vial_state_EVT);
+}
+
 void RF_2G4StatusCallBack(uint8_t sta, uint8_t crc, uint8_t *rxBuf)
 {
     switch(sta)
@@ -139,6 +147,7 @@ void RF_2G4StatusCallBack(uint8_t sta, uint8_t crc, uint8_t *rxBuf)
             time_out_flag = 0;
 //           PRINT("rx\r\n");
             if (crc == 0) {
+                if (RF_Bounding_flag) RF_SetVialDesired(1);
                 if(rxBuf[2]==0x98) {
 
                     if (rxBuf[3]==0x01) {     //keyboard
@@ -175,6 +184,7 @@ void RF_2G4StatusCallBack(uint8_t sta, uint8_t crc, uint8_t *rxBuf)
         {
             time_out_flag++;
             if (time_out_flag>=100) {
+                RF_SetVialDesired(0);
                 RF_Bounding_flag = 0;
                 time_out_flag=0;
                 tmos_memset(Dongle_data.RXBUFF_key, 0, 8); //�Ͽ�����һ��
@@ -187,6 +197,7 @@ void RF_2G4StatusCallBack(uint8_t sta, uint8_t crc, uint8_t *rxBuf)
         case RX_MODE_RX_DATA:
         {
             if (crc == 0) {
+                   if (RF_Bounding_flag) RF_SetVialDesired(1);
                    RF_Wait_Rx_End();
                    if(rxBuf[2]==0x98) {
                        if(rxBuf[3]==0xBD){  //Bounding
@@ -230,6 +241,11 @@ void RF_2G4StatusCallBack(uint8_t sta, uint8_t crc, uint8_t *rxBuf)
  */
 uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
 {
+    if(events & SBP_vial_state_EVT)
+    {
+        USB_SetVialEnabled(vial_desired);
+        return (events ^ SBP_vial_state_EVT);
+    }
     if(events & SYS_EVENT_MSG)
     {
         uint8_t *pMsg;
@@ -254,6 +270,7 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
     }
     if(events & SBP_nobounding_EVT)
     {
+        RF_SetVialDesired(0);
         RF_Shut();
         RF_Bounding_flag = 0;
         RF_Init(0x82531829);
@@ -262,6 +279,7 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
     }
     if(events & SBP_unbind_EVT)
     {
+        RF_SetVialDesired(0);
         RF_Shut();
         RF_Bounding_flag = 0;
         bounding_mac = 0;

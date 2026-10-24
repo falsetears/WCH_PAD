@@ -79,5 +79,7 @@
     extern BOOL USB_CapsLock_LEDOn;
 
     void HAL_USBInit( void );
+    void USB_SetVialEnabled(uint8_t en);
+    extern volatile uint8_t vial_enabled;
     void USB_DevWakeup(void);
 #endif
