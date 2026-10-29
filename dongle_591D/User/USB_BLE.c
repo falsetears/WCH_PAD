@@ -966,6 +966,7 @@ static uint8_t VIAL_Proxy(const uint8_t *in, uint8_t *out)
     if (in[0] == 0xFE) {            /* VIAL prefix */
         if (in[1] == 0x00) {        /* keyboard id */
             out[0] = 1; out[4] = 1;
+            out[12] = 1;
         }
         else if (in[1] == 0x01) {   /* definition size */
             out[0] = (uint8_t)(VIAL_DEF_SIZE & 0xFF);
@@ -987,7 +988,7 @@ static uint8_t VIAL_Proxy(const uint8_t *in, uint8_t *out)
         out[0] = in[0];
         return 1;
     }
-    if (in[0] == 0x02 || in[0] == 0x03 || in[0] == 0x08 || in[0] == 0x09) {
+    if (in[0] == 0x02 || in[0] == 0x03) {
         out[0] = in[0];
         return 1;
     }

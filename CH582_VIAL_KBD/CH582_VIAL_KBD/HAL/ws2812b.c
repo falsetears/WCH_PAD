@@ -199,3 +199,217 @@ void TMR2_IRQHandler(void)
         /* DMA ½áÊø */
     }
 }
+
+/* ---- VIALRGB effect engine ---- */
+
+vialrgb_config_t vialrgb_cfg = {2, 128, 0, 255, 255, 1};
+uint8_t vialrgb_active = 0;
+static uint16_t vialrgb_phase = 0;
+
+static const uint8_t led_row[17] = {0,0,0,0, 1,1,1, 2,2,2, 1, 3,3,3, 4,4, 3};
+static const uint8_t led_col[17] = {0,1,2,3, 0,1,2, 0,1,2, 3, 0,1,2, 0,2, 3};
+
+uint32_t hsv_to_rgb32(uint8_t h, uint8_t s, uint8_t v)
+{
+    uint32_t r, g, b;
+    uint32_t region = h / 43;
+    uint32_t rem = (h - region * 43) * 255 / 43;
+    uint32_t p = (uint32_t)v * (255 - s) / 255;
+    uint32_t q = (uint32_t)v * (255 - (uint32_t)s * rem / 255) / 255;
+    uint32_t t = (uint32_t)v * (255 - (uint32_t)s * (255 - rem) / 255) / 255;
+    switch (region) {
+        case 0:  r = v; g = t; b = p; break;
+        case 1:  r = q; g = v; b = p; break;
+        case 2:  r = p; g = v; b = t; break;
+        case 3:  r = p; g = q; b = v; break;
+        case 4:  r = t; g = p; b = v; break;
+        default: r = v; g = p; b = q; break;
+    }
+    return (r << 16) | (g << 8) | b;
+}
+
+void vialrgb_init(void)
+{
+    vialrgb_cfg.mode = VIALRGB_EFFECT_SOLID;
+    vialrgb_cfg.speed = 128;
+    vialrgb_cfg.hue = 0;
+    vialrgb_cfg.sat = 255;
+    vialrgb_cfg.val = 255;
+    vialrgb_cfg.enabled = 1;
+    vialrgb_active = 0;
+    vialrgb_phase = 0;
+}
+
+void vialrgb_set_mode(uint16_t mode, uint8_t speed, uint8_t hue, uint8_t sat, uint8_t val)
+{
+    if (mode >= VIALRGB_EFFECT_MAX) mode = VIALRGB_EFFECT_SOLID;
+    vialrgb_cfg.mode = mode;
+    vialrgb_cfg.speed = speed;
+    vialrgb_cfg.hue = hue;
+    vialrgb_cfg.sat = sat;
+    vialrgb_cfg.val = val;
+    vialrgb_cfg.enabled = 1;
+    vialrgb_active = 1;
+    vialrgb_phase = 0;
+}
+
+static uint8_t breathe_curve(uint8_t phase)
+{
+    int16_t d = (int16_t)phase - 128;
+    if (d < 0) d = -d;
+    uint16_t c = (uint16_t)(128 - d) * (128 - d) / 128 * 2;
+    return (uint8_t)(c > 255 ? 255 : c);
+}
+
+void vialrgb_tick(uint32_t *led_buf)
+{
+    uint8_t i;
+    uint8_t h = vialrgb_cfg.hue;
+    uint8_t s = vialrgb_cfg.sat;
+    uint8_t v = vialrgb_cfg.val;
+
+    if (!vialrgb_cfg.enabled || v == 0 || vialrgb_cfg.mode == VIALRGB_EFFECT_DISABLE) {
+        for (i = 0; i < 17; i++) led_buf[i] = 0;
+        return;
+    }
+
+    vialrgb_phase += (uint8_t)(vialrgb_cfg.speed / 4 + 1);
+
+    switch (vialrgb_cfg.mode) {
+        case VIALRGB_EFFECT_DIRECT:
+        case VIALRGB_EFFECT_SOLID:
+        case VIALRGB_EFFECT_ALPHAS_MODS:
+        case VIALRGB_EFFECT_SOLID_REACTIVE_SIMPLE:
+        case VIALRGB_EFFECT_SOLID_REACTIVE:
+        case VIALRGB_EFFECT_SOLID_REACTIVE_WIDE:
+        case VIALRGB_EFFECT_SOLID_REACTIVE_MULTIWIDE:
+        case VIALRGB_EFFECT_SOLID_REACTIVE_CROSS:
+        case VIALRGB_EFFECT_SOLID_REACTIVE_MULTICROSS:
+        case VIALRGB_EFFECT_SOLID_REACTIVE_NEXUS:
+        case VIALRGB_EFFECT_SOLID_REACTIVE_MULTINEXUS:
+        case VIALRGB_EFFECT_SOLID_SPLASH:
+        case VIALRGB_EFFECT_SOLID_MULTISPLASH:
+            {
+                uint32_t c = hsv_to_rgb32(h, s, v);
+                for (i = 0; i < 17; i++) led_buf[i] = c;
+            }
+            break;
+
+        case VIALRGB_EFFECT_BREATHING:
+        case VIALRGB_EFFECT_HUE_BREATHING:
+            {
+                uint8_t bv = (uint8_t)((uint16_t)v * breathe_curve(vialrgb_phase & 0xFF) / 255);
+                uint32_t c = hsv_to_rgb32(h, s, bv);
+                for (i = 0; i < 17; i++) led_buf[i] = c;
+            }
+            break;
+
+        case VIALRGB_EFFECT_GRAD_UD:
+            for (i = 0; i < 17; i++)
+                led_buf[i] = hsv_to_rgb32((uint8_t)(h + led_row[i] * 51), s, v);
+            break;
+
+        case VIALRGB_EFFECT_GRAD_LR:
+            for (i = 0; i < 17; i++)
+                led_buf[i] = hsv_to_rgb32((uint8_t)(h + led_col[i] * 64), s, v);
+            break;
+
+        case VIALRGB_EFFECT_BAND_SAT:
+        case VIALRGB_EFFECT_BAND_VAL:
+        case VIALRGB_EFFECT_BAND_PINWHEEL_SAT:
+        case VIALRGB_EFFECT_BAND_PINWHEEL_VAL:
+        case VIALRGB_EFFECT_BAND_SPIRAL_SAT:
+        case VIALRGB_EFFECT_BAND_SPIRAL_VAL:
+            {
+                uint8_t bp = vialrgb_phase % 17;
+                for (i = 0; i < 17; i++) {
+                    int8_t dist = (int8_t)(i - bp);
+                    if (dist < 0) dist = -dist;
+                    if (dist > 8) dist = 16 - dist;
+                    uint8_t bv = (dist < 3) ? v : (uint8_t)(v / 4);
+                    led_buf[i] = hsv_to_rgb32(h, s, bv);
+                }
+            }
+            break;
+
+        case VIALRGB_EFFECT_CYCLE_ALL:
+            for (i = 0; i < 17; i++)
+                led_buf[i] = hsv_to_rgb32((uint8_t)(h + vialrgb_phase), s, v);
+            break;
+
+        case VIALRGB_EFFECT_CYCLE_LR:
+            for (i = 0; i < 17; i++)
+                led_buf[i] = hsv_to_rgb32((uint8_t)(h + led_col[i] * 64 + vialrgb_phase), s, v);
+            break;
+
+        case VIALRGB_EFFECT_CYCLE_UD:
+            for (i = 0; i < 17; i++)
+                led_buf[i] = hsv_to_rgb32((uint8_t)(h + led_row[i] * 51 + vialrgb_phase), s, v);
+            break;
+
+        case VIALRGB_EFFECT_RAINBOW_CHEVRON:
+        case VIALRGB_EFFECT_CYCLE_PINWHEEL:
+        case VIALRGB_EFFECT_CYCLE_SPIRAL:
+            for (i = 0; i < 17; i++)
+                led_buf[i] = hsv_to_rgb32((uint8_t)(h + i * 15 + vialrgb_phase), s, v);
+            break;
+
+        case VIALRGB_EFFECT_CYCLE_OI:
+        case VIALRGB_EFFECT_CYCLE_OI_DUAL:
+            for (i = 0; i < 17; i++) {
+                uint8_t dist = (led_row[i] > 2) ? led_row[i] - 2 : 2 - led_row[i];
+                led_buf[i] = hsv_to_rgb32((uint8_t)(h + dist * 51 + vialrgb_phase), s, v);
+            }
+            break;
+
+        case VIALRGB_EFFECT_DUAL_BEACON:
+        case VIALRGB_EFFECT_RAINBOW_BEACON:
+            {
+                uint8_t p1 = vialrgb_phase % 17;
+                uint8_t p2 = (16 - p1) % 17;
+                for (i = 0; i < 17; i++) {
+                    uint8_t bv = 0;
+                    if (i == p1 || i == p2) bv = v;
+                    else if (i == (p1+1)%17 || i == (p1+16)%17 ||
+                             i == (p2+1)%17 || i == (p2+16)%17) bv = v/2;
+                    led_buf[i] = hsv_to_rgb32(h, s, bv);
+                }
+            }
+            break;
+
+        case VIALRGB_EFFECT_RAINBOW_PINWHEELS:
+        case VIALRGB_EFFECT_RAIN_DROPS:
+        case VIALRGB_EFFECT_JELLYBEAN_RAIN:
+        case VIALRGB_EFFECT_DIGITAL_RAIN:
+        case VIALRGB_EFFECT_PIXEL_RAIN:
+            for (i = 0; i < 17; i++) {
+                uint8_t ph = (uint8_t)(vialrgb_phase + led_row[i] * 64);
+                uint8_t bv = (uint8_t)((uint16_t)v * breathe_curve(ph) / 255);
+                led_buf[i] = hsv_to_rgb32((uint8_t)(h + i * 15), s, bv);
+            }
+            break;
+
+        case VIALRGB_EFFECT_HUE_PENDULUM:
+        case VIALRGB_EFFECT_HUE_WAVE:
+            for (i = 0; i < 17; i++) {
+                uint8_t ph = (uint8_t)(vialrgb_phase + led_col[i] * 64);
+                uint8_t bv = (uint8_t)((uint16_t)v * breathe_curve(ph) / 255);
+                led_buf[i] = hsv_to_rgb32((uint8_t)(h + led_col[i] * 32), s, bv);
+            }
+            break;
+
+        case VIALRGB_EFFECT_TYPING_HEATMAP:
+        case VIALRGB_EFFECT_SPLASH:
+        case VIALRGB_EFFECT_MULTISPLASH:
+        case VIALRGB_EFFECT_PIXEL_FRACTAL:
+            {
+                uint32_t c = hsv_to_rgb32(h, s, v);
+                for (i = 0; i < 17; i++) led_buf[i] = c;
+            }
+            break;
+
+        default:
+            for (i = 0; i < 17; i++) led_buf[i] = 0;
+            break;
+    }
+}

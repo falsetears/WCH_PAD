@@ -27,6 +27,7 @@ uint8_t vial_data_count = 0;
 uint8_t key_chang_data[32] = {0};
 //uint8_t scan_flag = 0;
 uint8_t rgb_flag = 0;
+volatile uint16_t usb_rgb_tick = 0;
 
 // 设备描述符
 const uint8_t MyDevDescr[] = {0x12,0x01,0x00,0x02,0x00,0x00,
@@ -876,21 +877,17 @@ __HIGH_CODE
 __attribute__((noinline))
 void Main_Circulation_USB()
 {
+    static uint16_t last_tick = 0;
     while(1)
     {
-//        if (rgb_flag > 50) {
-//            PWM_DATA_DMA_send(Pwmout_buf,sizeof(Pwmout_buf));
-//            rgb_flag = 0;
-//        }
-//        rgb_flag++;
-//        if (rgb_flag>=40) {
-//            process_RGB_to_pwm(flowing_buf, 17, Pwmout_buf);
-//           // Ws2812_move_control(flowing_buf_usb,RGB_Left_flowing_water,17);
-//            rgb_flag = 51;
-//        }
-//        else {
-//            DelayMs(4);
-//        }
+        if (vialrgb_active && usb_rgb_tick != last_tick) {
+            last_tick = usb_rgb_tick;
+            if ((usb_rgb_tick & 0x0F) == 0) {
+                vialrgb_tick(flowing_buf);
+                process_RGB_to_pwm(flowing_buf, 17, &Pwmout_buf[WS2812_RESET_WORDS]);
+                PWM_DATA_DMA_send(Pwmout_buf, WS2812_FRAME_WORDS);
+            }
+        }
     }
 }
 /*********************************************************************
@@ -1029,7 +1026,61 @@ void VIAL_HandleReport(uint8_t *in, uint8_t *out)
         out[0] = cmd;
         std_handled = 1;
     }
-    else if (cmd == 0x02 || cmd == 0x03 || cmd == 0x08 || cmd == 0x09) {
+    else if (cmd == 0x07) {          /* LIGHTING_SET_VALUE */
+        uint8_t sub = in[1];
+        memset(out, 0, 32);
+        out[0] = 0x07;
+        out[1] = sub;
+        if (sub == 0x41) {           /* VIALRGB_SET_MODE */
+            uint16_t mode = (uint16_t)in[2] | ((uint16_t)in[3] << 8);
+            vialrgb_set_mode(mode, in[4], in[5], in[6], in[7]);
+        }
+        std_handled = 1;
+    }
+    else if (cmd == 0x08) {          /* LIGHTING_GET_VALUE */
+        uint8_t sub = in[1];
+        memset(out, 0, 32);
+        out[0] = 0x08;
+        out[1] = sub;
+        if (sub == 0x40) {           /* VIALRGB_GET_INFO */
+            out[2] = 1;
+            out[3] = 0;
+            out[4] = 255;
+        }
+        else if (sub == 0x41) {      /* VIALRGB_GET_MODE */
+            out[2] = (uint8_t)(vialrgb_cfg.mode & 0xFF);
+            out[3] = (uint8_t)((vialrgb_cfg.mode >> 8) & 0xFF);
+            out[4] = vialrgb_cfg.speed;
+            out[5] = vialrgb_cfg.hue;
+            out[6] = vialrgb_cfg.sat;
+            out[7] = vialrgb_cfg.val;
+        }
+        else if (sub == 0x42) {      /* VIALRGB_GET_SUPPORTED */
+            static const uint16_t supported[] = {
+                0, 2, 6, 4, 5, 7, 13, 14, 15, 17, 21, 28, 32, 37, 0xFFFF
+            };
+            uint16_t start = (uint16_t)in[2] | ((uint16_t)in[3] << 8);
+            uint8_t idx = 0;
+            for (uint8_t e = 0; supported[e] != 0xFFFF; e++) {
+                if (supported[e] >= start && idx + 2 < 32) {
+                    out[2 + idx] = (uint8_t)(supported[e] & 0xFF);
+                    out[3 + idx] = (uint8_t)((supported[e] >> 8) & 0xFF);
+                    idx += 2;
+                }
+            }
+            if (idx + 2 < 32) {
+                out[2 + idx] = 0xFF;
+                out[3 + idx] = 0xFF;
+            }
+        }
+        std_handled = 1;
+    }
+    else if (cmd == 0x09) {          /* LIGHTING_SAVE */
+        memset(out, 0, 32);
+        out[0] = 0x09;
+        std_handled = 1;
+    }
+    else if (cmd == 0x02 || cmd == 0x03) {
         memset(out, 0, 32);
         out[0] = cmd;
         std_handled = 1;
@@ -1165,6 +1216,7 @@ void TMR3_IRQHandler(void) // TMR3 定时中断
     if(TMR3_GetITFlag(TMR0_3_IT_CYC_END))
     {
         TMR3_ClearITFlag(TMR0_3_IT_CYC_END); // 清除中断标志
+        usb_rgb_tick++;
         memset(scan_buf,0,6);
         scan_flag = get_key_fanz(scan_buf);
         if (memcmp(scan_buf,last_buf,6) == 0) {

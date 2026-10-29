@@ -406,29 +406,30 @@ uint16_t RF_ProcessEvent(uint8_t task_id, uint16_t events)
         }
         rf_wait_ticks = 0;
         static __attribute__((aligned(4))) uint32_t led_buf[RF_LED_COUNT];
-        uint32_t base_color = RF_LED_YELLOW;
-        uint32_t status_color = 0;
-        uint8_t  led_on;
 
-        /* 2 Hz blink: 250 ms on, 250 ms off, phase locked to the system clock */
-        led_on = (uint8_t)(((TMOS_GetSystemClock() / MS1_TO_SYSTEM_TIME(RF_LED_BLINK_HALF_MS)) & 1) == 0);
-        rf_led_blink_state = led_on;
-
-        if (rf_pairing_mode) {
-            /* Pairing: LEDs 1-16 yellow, last LED blue 2 Hz */
-            status_color = led_on ? RF_LED_BLUE : 0;
-        } else if (RF_Bounding_flag && rf_lost_count < RF_LINK_LOST_LIMIT) {
-            /* Connected: all 17 yellow solid */
-            status_color = RF_LED_YELLOW;
+        if (vialrgb_active) {
+            vialrgb_tick(led_buf);
         } else {
-            /* Paired but not connected / not paired: LEDs 1-16 yellow, last LED red 2 Hz */
-            status_color = led_on ? RF_LED_RED : 0;
-        }
+            uint32_t base_color = RF_LED_YELLOW;
+            uint32_t status_color = 0;
+            uint8_t  led_on;
 
-        for (uint8_t i = 0; i < RF_LED_COUNT; i++) {
-            led_buf[i] = base_color;
+            led_on = (uint8_t)(((TMOS_GetSystemClock() / MS1_TO_SYSTEM_TIME(RF_LED_BLINK_HALF_MS)) & 1) == 0);
+            rf_led_blink_state = led_on;
+
+            if (rf_pairing_mode) {
+                status_color = led_on ? RF_LED_BLUE : 0;
+            } else if (RF_Bounding_flag && rf_lost_count < RF_LINK_LOST_LIMIT) {
+                status_color = RF_LED_YELLOW;
+            } else {
+                status_color = led_on ? RF_LED_RED : 0;
+            }
+
+            for (uint8_t i = 0; i < RF_LED_COUNT; i++) {
+                led_buf[i] = base_color;
+            }
+            led_buf[RF_LED_LAST] = status_color;
         }
-        led_buf[RF_LED_LAST] = status_color;
 
         process_RGB_to_pwm(led_buf, RF_LED_COUNT, &Pwmout_buf[WS2812_RESET_WORDS]);
         PWM_DATA_DMA_send(Pwmout_buf, WS2812_FRAME_WORDS);
