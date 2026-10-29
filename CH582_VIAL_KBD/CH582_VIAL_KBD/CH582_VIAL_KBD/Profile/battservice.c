@@ -25,11 +25,12 @@
  * CONSTANTS
  */
 
-// ADC voltage levels (PA4/VIN0, 1:1 divider, Vref=3.3V, 12-bit)
-// VBAT 4.2V -> VADC 2.1V -> ADC 2601
-// VBAT 2.5V -> VADC 1.25V -> ADC 1545
-#define BATT_ADC_MAX                 2601
-#define BATT_ADC_MIN                 1545
+// ADC voltage levels (PA4/VIN0, 1:1 divider R8=100K/R9=100K, VDD=3.27V reference, 12-bit)
+// 实测 3.99V 时分压 1.995V -> ADC 读数约为 2500
+// VBAT 4.20V (100%) -> V_PA4 2.100V -> ADC = 2630
+// VBAT 3.12V (0%)   -> V_PA4 1.560V -> ADC = 1950
+#define BATT_ADC_MAX                 2630
+#define BATT_ADC_MIN                 1950
 
 #define BATT_LEVEL_VALUE_IDX         2    // Position of battery level in attribute array
 #define BATT_LEVEL_VALUE_CCCD_IDX    3    // Position of battery level CCCD in attribute array
@@ -178,6 +179,9 @@ bStatus_t Batt_AddService(void)
 {
     uint8_t status = SUCCESS;
 
+    // 初始测量一次真实电量，避免默认 100% 造成误报
+    battLevel = battMeasure();
+
     // Initialize Client Characteristic Configuration attributes
     GATTServApp_InitCharCfg(INVALID_CONNHANDLE, battLevelClientCharCfg);
 
@@ -310,8 +314,7 @@ bStatus_t Batt_MeasLevel(void)
 
     level = battMeasure();
 
-    // If level has gone down
-    if(level < battLevel)
+    if(level != battLevel)
     {
         // Update level
         battLevel = level;
@@ -385,12 +388,7 @@ static bStatus_t battReadAttrCB(uint16_t connHandle, gattAttribute_t *pAttr,
 
         level = battMeasure();
 
-        // If level has gone down
-        if(level < battLevel)
-        {
-            // Update level
-            battLevel = level;
-        }
+        battLevel = level;
 
         *pLen = 1;
         pValue[0] = battLevel;
@@ -497,17 +495,28 @@ static void battNotifyCB(linkDBItem_t *pLinkItem)
  */
 static uint8_t battMeasure(void)
 {
+    uint32_t adc_sum = 0;
     uint16_t adc;
     uint8_t  percent;
 
-    // PA4 需切到模拟输入（关闭数字输入缓冲），否则 HAL_SLEEP 把它配成
-    // 带上拉的数字输入，ADC 读到数字高电平恒为满量程，电量永远 100%
+    // 1. 关闭内部弱上拉，切为浮空模拟输入（避免内部上拉并联破坏外部 100K:100K 分压）
+    GPIOA_ModeCfg(GPIO_Pin_4, GPIO_ModeIN_Floating);
     GPIOAGPPCfg(ENABLE, RB_PIN_ADC0_IE);
 
-    // Read PA4 (VIN0/CH_EXTIN_0) - VBAT via divider
-    ADC_ExtSingleChSampInit(SampleFreq_3_2, ADC_PGA_0);
+    // 2. 使用 -12dB 模式（ADC_PGA_1_4），配置通道 0 (PA4)
+    ADC_ExtSingleChSampInit(SampleFreq_3_2, ADC_PGA_1_4);
     ADC_ChannelCfg(CH_EXTIN_0);
-    adc = ADC_ExcutSingleConver();
+    DelayUs(30); // 等待 ADC 内部偏置与采样缓冲稳定
+
+    // 3. 连续转换 8 次取平均，滤除杂波波动
+    for(int i = 0; i < 8; i++)
+    {
+        adc_sum += ADC_ExcutSingleConver();
+    }
+    adc = (uint16_t)(adc_sum >> 3);
+
+    // 4. 采样完成，关闭模拟输入并断开
+    GPIOAGPPCfg(DISABLE, RB_PIN_ADC0_IE);
 
     if(adc >= battMaxLevel)
     {
@@ -519,16 +528,11 @@ static uint8_t battMeasure(void)
     }
     else
     {
-        if(battServiceCalcCB != NULL)
-        {
-            percent = battServiceCalcCB(adc);
-        }
-        else
-        {
-            uint16_t range = battMaxLevel - battMinLevel;
-            percent = (uint8_t)(((adc - battMinLevel) * 100) / range);
-        }
+        uint16_t range = battMaxLevel - battMinLevel;
+        percent = (uint8_t)(((uint32_t)(adc - battMinLevel) * 100) / range);
     }
+
+    PRINT("PA4 ADC raw: %d, percent: %d%%\r\n", adc, percent);
 
     return percent;
 }
