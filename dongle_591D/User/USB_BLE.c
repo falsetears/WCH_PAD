@@ -27,6 +27,12 @@ uint8_t key_chang_data[32] = {0};
 //uint8_t scan_flag = 0;
 uint8_t rgb_flag = 0;
 volatile uint8_t vial_out_flag = 0;
+/* Local VIALRGB state (mirrors keyboard for fast GET responses) */
+static uint16_t local_rgb_mode = 2;
+static uint8_t  local_rgb_speed = 128;
+static uint8_t  local_rgb_hue = 0;
+static uint8_t  local_rgb_sat = 255;
+static uint8_t  local_rgb_val = 255;
 /* Local keymap buffer for VIAL (5x4 matrix, HID keycodes) */
 static uint8_t dongle_keymap[20] = {
     0x53, 0x54, 0x55, 0x56,
@@ -990,6 +996,56 @@ static uint8_t VIAL_Proxy(const uint8_t *in, uint8_t *out)
     }
     if (in[0] == 0x02 || in[0] == 0x03) {
         out[0] = in[0];
+        return 1;
+    }
+    if (in[0] == 0x07) {            /* LIGHTING_SET_VALUE - update local + tunnel */
+        if (in[1] == 0x41) {        /* VIALRGB_SET_MODE */
+            local_rgb_mode = (uint16_t)in[2] | ((uint16_t)in[3] << 8);
+            local_rgb_speed = in[4];
+            local_rgb_hue = in[5];
+            local_rgb_sat = in[6];
+            local_rgb_val = in[7];
+        }
+        return 0;   /* tunnel to keyboard */
+    }
+    if (in[0] == 0x08) {            /* LIGHTING_GET_VALUE - serve locally */
+        out[0] = 0x08;
+        out[1] = in[1];
+        if (in[1] == 0x40) {        /* VIALRGB_GET_INFO */
+            out[2] = 1;             /* version low */
+            out[3] = 0;             /* version high */
+            out[4] = 255;           /* max brightness */
+        }
+        else if (in[1] == 0x41) {   /* VIALRGB_GET_MODE */
+            out[2] = (uint8_t)(local_rgb_mode & 0xFF);
+            out[3] = (uint8_t)((local_rgb_mode >> 8) & 0xFF);
+            out[4] = local_rgb_speed;
+            out[5] = local_rgb_hue;
+            out[6] = local_rgb_sat;
+            out[7] = local_rgb_val;
+        }
+        else if (in[1] == 0x42) {   /* VIALRGB_GET_SUPPORTED */
+            static const uint16_t supported[] = {
+                0, 2, 6, 4, 5, 7, 13, 14, 15, 17, 21, 28, 32, 37, 0xFFFF
+            };
+            uint16_t start = (uint16_t)in[2] | ((uint16_t)in[3] << 8);
+            uint8_t idx = 0;
+            for (uint8_t e = 0; supported[e] != 0xFFFF; e++) {
+                if (supported[e] >= start && idx + 2 < 32) {
+                    out[2 + idx] = (uint8_t)(supported[e] & 0xFF);
+                    out[3 + idx] = (uint8_t)((supported[e] >> 8) & 0xFF);
+                    idx += 2;
+                }
+            }
+            if (idx + 2 < 32) {
+                out[2 + idx] = 0xFF;
+                out[3 + idx] = 0xFF;
+            }
+        }
+        return 1;
+    }
+    if (in[0] == 0x09) {            /* LIGHTING_SAVE - ack locally */
+        out[0] = 0x09;
         return 1;
     }
     if (in[0] == 0x12) {            /* KEYMAP_GET_BUFFER - serve locally */
