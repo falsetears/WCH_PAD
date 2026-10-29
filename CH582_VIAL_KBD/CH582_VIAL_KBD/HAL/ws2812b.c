@@ -211,6 +211,7 @@ static const uint8_t led_row[17] = {0,0,0,0, 1,1,1, 2,2,2, 1, 3,3,3, 4,4, 3};
 static const uint8_t led_col[17] = {0,1,2,3, 0,1,2, 0,1,2, 3, 0,1,2, 0,2, 3};
 
 #define VIALRGB_FLASH_ADDR  0x7E00
+static volatile uint8_t vialrgb_save_pending = 0;
 
 static void vialrgb_flash_save(void)
 {
@@ -236,6 +237,13 @@ static void vialrgb_flash_load(void)
     vialrgb_cfg.enabled = (uint8_t)((buf[1] >> 16) & 0xFF);
     if (vialrgb_cfg.mode >= VIALRGB_EFFECT_MAX) vialrgb_cfg.mode = VIALRGB_EFFECT_SOLID;
     vialrgb_active = 1;
+}
+
+void vialrgb_flash_flush(void)
+{
+    if (!vialrgb_save_pending) return;
+    vialrgb_save_pending = 0;
+    vialrgb_flash_save();
 }
 
 uint32_t hsv_to_rgb32(uint8_t h, uint8_t s, uint8_t v)
@@ -281,7 +289,7 @@ void vialrgb_set_mode(uint16_t mode, uint8_t speed, uint8_t hue, uint8_t sat, ui
     vialrgb_cfg.enabled = 1;
     vialrgb_active = 1;
     vialrgb_phase = 0;
-    vialrgb_flash_save();
+    vialrgb_save_pending = 1;
 }
 
 static uint8_t breathe_curve(uint8_t phase)
@@ -299,6 +307,7 @@ void vialrgb_tick(uint32_t *led_buf)
     uint8_t s = vialrgb_cfg.sat;
     uint8_t v = vialrgb_cfg.val;
 
+    vialrgb_flash_flush();
     if (!vialrgb_cfg.enabled || v == 0 || vialrgb_cfg.mode == VIALRGB_EFFECT_DISABLE) {
         for (i = 0; i < 17; i++) led_buf[i] = 0;
         return;

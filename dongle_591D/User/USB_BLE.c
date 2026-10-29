@@ -34,6 +34,7 @@ static uint8_t  local_rgb_hue = 0;
 static uint8_t  local_rgb_sat = 255;
 static uint8_t  local_rgb_val = 255;
 #define VIALRGB_DONGLE_FLASH_ADDR  0x7E00
+static volatile uint8_t dongle_rgb_save_pending = 0;
 static void dongle_rgb_save(void)
 {
     __attribute__((aligned(4))) uint32_t buf[2] = {0};
@@ -847,6 +848,10 @@ void USB_DevTransProcess(void)
 *******************************************************************************/
 tmosEvents USB_ProcessEvent( tmosTaskID task_id, tmosEvents events )
 {
+  if (dongle_rgb_save_pending) {
+      dongle_rgb_save_pending = 0;
+      dongle_rgb_save();
+  }
   if ( events & START_USB_EVENT )
   {
      PFIC_EnableIRQ( USB_IRQn );
@@ -1027,7 +1032,7 @@ static uint8_t VIAL_Proxy(const uint8_t *in, uint8_t *out)
             local_rgb_hue = in[5];
             local_rgb_sat = in[6];
             local_rgb_val = in[7];
-            dongle_rgb_save();
+            dongle_rgb_save_pending = 1;
         }
         return 0;   /* tunnel to keyboard */
     }

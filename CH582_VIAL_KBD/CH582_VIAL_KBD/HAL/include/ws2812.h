@@ -88,6 +88,7 @@ extern uint8_t vialrgb_active;
 
 extern void vialrgb_init(void);
 extern void vialrgb_set_mode(uint16_t mode, uint8_t speed, uint8_t hue, uint8_t sat, uint8_t val);
+extern void vialrgb_flash_flush(void);
 extern void vialrgb_tick(uint32_t *led_buf);
 extern uint32_t hsv_to_rgb32(uint8_t h, uint8_t s, uint8_t v);
 
