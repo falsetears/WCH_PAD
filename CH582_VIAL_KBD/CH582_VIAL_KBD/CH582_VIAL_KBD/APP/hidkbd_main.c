@@ -3,7 +3,7 @@
  * Author             : WCH
  * Version            : V1.0
  * Date               : 2024/12/10
- * Description        : è“ç‰™é”®ç›˜åº”ç”¨ä¸»å‡½æ•°åŠä»»åŠ¡ç³»ç»Ÿåˆå§‹åŒ–
+ * Description        : À¶ÑÀ¼üÅÌÓ¦ÓÃÖ÷º¯Êı¼°ÈÎÎñÏµÍ³³õÊ¼»¯
  *********************************************************************************
  * Copyright (c) 2021 Nanjing Qinheng Microelectronics Co., Ltd.
  * Attention: This software (modified or not) and binary are used for 
@@ -11,7 +11,7 @@
  *******************************************************************************/
 
 /******************************************************************************/
-/* å¤´æ–‡ä»¶åŒ…å« */
+/* Í·ÎÄ¼ş°üº¬ */
 #include "CONFIG.h"
 #include "HAL.h"
 #include "hiddev.h"
@@ -33,7 +33,7 @@ const uint8_t MacAddr[6] = {0x84, 0xC2, 0xE4, 0x03, 0x02, 0x02};
 /*********************************************************************
  * @fn      Main_Circulation
  *
- * @brief   ä¸»å¾ªç¯
+ * @brief   Ö÷Ñ­»·
  *
  * @return  none
  */
@@ -50,7 +50,7 @@ void Main_Circulation()
 /*********************************************************************
  * @fn      main
  *
- * @brief   ä¸»å‡½æ•°
+ * @brief   Ö÷º¯Êı
  *
  * @return  none
  */
@@ -61,7 +61,7 @@ int main(void)
 #if(defined(HAL_SLEEP)) && (HAL_SLEEP == TRUE)
     GPIOA_ModeCfg(GPIO_Pin_All, GPIO_ModeIN_PU);
     GPIOB_ModeCfg(GPIO_Pin_All, GPIO_ModeIN_PU);
-    GPIOA_ModeCfg(GPIO_Pin_4, GPIO_ModeIN_Floating); // PA4 ä¸ºç”µæ± åˆ†å‹é‡‡æ ·è„šï¼Œå¿…é¡»æµ®ç©ºï¼Œç¦æ­¢å†…éƒ¨ä¸Šæ‹‰
+    GPIOA_ModeCfg(GPIO_Pin_4, GPIO_ModeIN_Floating); // PA4 floating for battery divider
 #endif
 
 #ifdef DEBUG
@@ -70,15 +70,15 @@ int main(void)
     UART1_DefInit();
 #endif
     uint8_t key_mode = 0;
-    //vialæ”¯æŒåˆå§‹åŒ–å’Œé—­æºå¯†ç æ ¡éªŒï¼Œå¦‚æœæ£€éªŒä¸é€šè¿‡æ— æ³•å‘ä¸‹è¿è¡Œ
-    //å¦‚æœåˆ é™¤æ ¡éªŒåˆ™é”®ç›˜ä¸æ”¯æŒvialï¼Œè¯»å–é…åˆ—ä¹Ÿä¼šå¤±è´¥
+    //vialÖ§³Ö³õÊ¼»¯ºÍ±ÕÔ´ÃÜÂëĞ£Ñé£¬Èç¹û¼ìÑé²»Í¨¹ıÎŞ·¨ÏòÏÂÔËĞĞ
+    //Èç¹ûÉ¾³ıĞ£ÑéÔò¼üÅÌ²»Ö§³Övial£¬¶ÁÈ¡ÅäÁĞÒ²»áÊ§°Ü
     key_mode = vial_init();
     PRINT("key_mode=0x%02X\r\n", key_mode);
-    mDelaymS(20);          // ç­‰ä¸²å£å‘å®Œæ¨¡å¼å€¼ï¼Œé¿å…è¢«åç»­å¤ä½æˆªæ–­
+    mDelaymS(20);          // µÈ´®¿Ú·¢ÍêÄ£Ê½Öµ£¬±ÜÃâ±»ºóĞø¸´Î»½Ø¶Ï
     Ws2812_Init();
     Scan_init();
 
-    // æ•°æ®Flashä¸­çš„æ¨¡å¼å€¼éæ³•æ—¶é»˜è®¤USBï¼Œé¿å…è½å…¥SYS_ResetExecuteå¤ä½å¾ªç¯
+    // Êı¾İFlashÖĞµÄÄ£Ê½Öµ·Ç·¨Ê±Ä¬ÈÏUSB£¬±ÜÃâÂäÈëSYS_ResetExecute¸´Î»Ñ­»·
     if (key_mode != 0x0B && key_mode != 0xBE && key_mode != 0x24)
     {
         key_mode = 0x0B;
@@ -117,7 +117,7 @@ int main(void)
 
 /*******************************************************************************
 * Function Name  : GPIOA_IRQHandler
-* Description    : GPIOAå¤–éƒ¨ä¸­æ–­,ä½ç”µå¹³è§¦å‘
+* Description    : GPIOAÍâ²¿ÖĞ¶Ï,µÍµçÆ½´¥·¢
 * Input          : None
 * Return         : None
 *******************************************************************************/

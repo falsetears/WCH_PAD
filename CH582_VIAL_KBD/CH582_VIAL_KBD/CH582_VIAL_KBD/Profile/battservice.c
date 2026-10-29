@@ -3,7 +3,7 @@
  * Author             : WCH
  * Version            : V1.0
  * Date               : 2018/12/10
- * Description        : ï¿½ï¿½Ø·ï¿½ï¿½ï¿½
+ * Description        : µç³Ø·şÎñ
  *********************************************************************************
  * Copyright (c) 2021 Nanjing Qinheng Microelectronics Co., Ltd.
  * Attention: This software (modified or not) and binary are used for 
@@ -26,7 +26,7 @@
  */
 
 // ADC voltage levels (PA4/VIN0, 1:1 divider R8=100K/R9=100K, VDD=3.27V reference, 12-bit)
-// å®æµ‹ 3.99V æ—¶åˆ†å‹ 1.995V -> ADC è¯»æ•°çº¦ä¸º 2500
+// Êµ²â 3.99V Ê±·ÖÑ¹ 1.995V -> ADC ¶ÁÊıÔ¼Îª 2500
 // VBAT 4.20V (100%) -> V_PA4 2.100V -> ADC = 2630
 // VBAT 3.12V (0%)   -> V_PA4 1.560V -> ADC = 1950
 #define BATT_ADC_MAX                 2630
@@ -179,7 +179,7 @@ bStatus_t Batt_AddService(void)
 {
     uint8_t status = SUCCESS;
 
-    // åˆå§‹æµ‹é‡ä¸€æ¬¡çœŸå®ç”µé‡ï¼Œé¿å…é»˜è®¤ 100% é€ æˆè¯¯æŠ¥
+    // ³õÊ¼²âÁ¿Ò»´ÎÕæÊµµçÁ¿£¬±ÜÃâÄ¬ÈÏ 100% Ôì³ÉÎó±¨
     battLevel = battMeasure();
 
     // Initialize Client Characteristic Configuration attributes
@@ -499,23 +499,22 @@ static uint8_t battMeasure(void)
     uint16_t adc;
     uint8_t  percent;
 
-    // 1. å…³é—­å†…éƒ¨å¼±ä¸Šæ‹‰ï¼Œåˆ‡ä¸ºæµ®ç©ºæ¨¡æ‹Ÿè¾“å…¥ï¼ˆé¿å…å†…éƒ¨ä¸Šæ‹‰å¹¶è”ç ´åå¤–éƒ¨ 100K:100K åˆ†å‹ï¼‰
+    // 1. ¹Ø±ÕÄÚ²¿ÈõÉÏÀ­£¬ÇĞÎª¸¡¿ÕÄ£ÄâÊäÈë£¨±ÜÃâÄÚ²¿ÉÏÀ­²¢ÁªÆÆ»µÍâ²¿ 100K:100K ·ÖÑ¹£©
     GPIOA_ModeCfg(GPIO_Pin_4, GPIO_ModeIN_Floating);
     GPIOAGPPCfg(ENABLE, RB_PIN_ADC0_IE);
 
-    // 2. ä½¿ç”¨ -12dB æ¨¡å¼ï¼ˆADC_PGA_1_4ï¼‰ï¼Œé…ç½®é€šé“ 0 (PA4)
+    // 2. Ê¹ÓÃ -12dB Ä£Ê½£¨ADC_PGA_1_4£©£¬ÅäÖÃÍ¨µÀ 0 (PA4)
     ADC_ExtSingleChSampInit(SampleFreq_3_2, ADC_PGA_1_4);
     ADC_ChannelCfg(CH_EXTIN_0);
-    DelayUs(30); // ç­‰å¾… ADC å†…éƒ¨åç½®ä¸é‡‡æ ·ç¼“å†²ç¨³å®š
+    DelayUs(30); // Stabilize ADC bias
 
-    // 3. è¿ç»­è½¬æ¢ 8 æ¬¡å–å¹³å‡ï¼Œæ»¤é™¤æ‚æ³¢æ³¢åŠ¨
+    // 3. Á¬Ğø×ª»» 8 ´ÎÈ¡Æ½¾ù£¬ÂË³ıÔÓ²¨²¨¶¯
     for(int i = 0; i < 8; i++)
     {
         adc_sum += ADC_ExcutSingleConver();
     }
     adc = (uint16_t)(adc_sum >> 3);
-
-    // 4. é‡‡æ ·å®Œæˆï¼Œå…³é—­æ¨¡æ‹Ÿè¾“å…¥å¹¶æ–­å¼€
+    // 4. Disable analog routing after conversion
     GPIOAGPPCfg(DISABLE, RB_PIN_ADC0_IE);
 
     if(adc >= battMaxLevel)
