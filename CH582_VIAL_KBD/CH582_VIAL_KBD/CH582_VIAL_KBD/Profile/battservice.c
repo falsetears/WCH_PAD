@@ -500,7 +500,11 @@ static uint8_t battMeasure(void)
     uint16_t adc;
     uint8_t  percent;
 
-    // Read PA4 (VIN0/CH_EXTIN_0) - VBAT via 1:1 divider
+    // PA4 需切到模拟输入（关闭数字输入缓冲），否则 HAL_SLEEP 把它配成
+    // 带上拉的数字输入，ADC 读到数字高电平恒为满量程，电量永远 100%
+    GPIOAGPPCfg(ENABLE, RB_PIN_ADC0_IE);
+
+    // Read PA4 (VIN0/CH_EXTIN_0) - VBAT via divider
     ADC_ExtSingleChSampInit(SampleFreq_3_2, ADC_PGA_0);
     ADC_ChannelCfg(CH_EXTIN_0);
     adc = ADC_ExcutSingleConver();
