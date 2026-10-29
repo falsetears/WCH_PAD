@@ -33,6 +33,27 @@ static uint8_t  local_rgb_speed = 128;
 static uint8_t  local_rgb_hue = 0;
 static uint8_t  local_rgb_sat = 255;
 static uint8_t  local_rgb_val = 255;
+#define VIALRGB_DONGLE_FLASH_ADDR  0x7E00
+static void dongle_rgb_save(void)
+{
+    __attribute__((aligned(4))) uint32_t buf[2] = {0};
+    buf[0] = (uint32_t)(local_rgb_mode & 0xFF) | ((uint32_t)((local_rgb_mode >> 8) & 0xFF) << 8) |
+             ((uint32_t)local_rgb_speed << 16) | ((uint32_t)local_rgb_hue << 24);
+    buf[1] = (uint32_t)local_rgb_sat | ((uint32_t)local_rgb_val << 8) | (0xFFu << 24);
+    EEPROM_ERASE(VIALRGB_DONGLE_FLASH_ADDR, 256);
+    EEPROM_WRITE(VIALRGB_DONGLE_FLASH_ADDR, buf, 8);
+}
+static void dongle_rgb_load(void)
+{
+    __attribute__((aligned(4))) uint32_t buf[2] = {0};
+    EEPROM_READ(VIALRGB_DONGLE_FLASH_ADDR, buf, 8);
+    if (buf[1] == 0xFFFFFFFF || (buf[1] >> 24) != 0xFF) return;
+    local_rgb_mode = (uint16_t)(buf[0] & 0xFFFF);
+    local_rgb_speed = (uint8_t)((buf[0] >> 16) & 0xFF);
+    local_rgb_hue = (uint8_t)((buf[0] >> 24) & 0xFF);
+    local_rgb_sat = (uint8_t)(buf[1] & 0xFF);
+    local_rgb_val = (uint8_t)((buf[1] >> 8) & 0xFF);
+}
 /* Local keymap buffer for VIAL (5x4 matrix, HID keycodes) */
 static uint8_t dongle_keymap[20] = {
     0x53, 0x54, 0x55, 0x56,
@@ -896,6 +917,7 @@ void HAL_USBInit( void )
   memcpy(vial_Desc_ram, vial_Desc, sizeof(vial_Desc));
   vial_Desc_ram[1] = 0x61;  // no keyboard yet: do not look like a VIAL device
   vial_enabled = 0;
+  dongle_rgb_load();
   usbTaskID = TMOS_ProcessEventRegister( USB_ProcessEvent );
   pEP0_RAM_Addr = EP0_Databuf;
   pEP1_RAM_Addr = EP1_Databuf;
@@ -1005,6 +1027,7 @@ static uint8_t VIAL_Proxy(const uint8_t *in, uint8_t *out)
             local_rgb_hue = in[5];
             local_rgb_sat = in[6];
             local_rgb_val = in[7];
+            dongle_rgb_save();
         }
         return 0;   /* tunnel to keyboard */
     }

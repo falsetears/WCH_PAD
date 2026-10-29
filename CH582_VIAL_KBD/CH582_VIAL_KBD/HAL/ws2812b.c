@@ -63,6 +63,7 @@ void Ws2812_Init(void)
     //TMR2_ClearITFlag(TMR1_2_IT_DMA_END);
     //TMR2_ITCfg(ENABLE, TMR1_2_IT_DMA_END);
     //PFIC_EnableIRQ(TMR2_IRQn);
+    vialrgb_init();
 }
 
 /*********************************************************************
@@ -209,6 +210,34 @@ static uint16_t vialrgb_phase = 0;
 static const uint8_t led_row[17] = {0,0,0,0, 1,1,1, 2,2,2, 1, 3,3,3, 4,4, 3};
 static const uint8_t led_col[17] = {0,1,2,3, 0,1,2, 0,1,2, 3, 0,1,2, 0,2, 3};
 
+#define VIALRGB_FLASH_ADDR  0x7E00
+
+static void vialrgb_flash_save(void)
+{
+    __attribute__((aligned(4))) uint32_t buf[2] = {0};
+    buf[0] = (uint32_t)(vialrgb_cfg.mode & 0xFF) | ((uint32_t)((vialrgb_cfg.mode >> 8) & 0xFF) << 8) |
+             ((uint32_t)vialrgb_cfg.speed << 16) | ((uint32_t)vialrgb_cfg.hue << 24);
+    buf[1] = (uint32_t)vialrgb_cfg.sat | ((uint32_t)vialrgb_cfg.val << 8) |
+             ((uint32_t)vialrgb_cfg.enabled << 16) | (0xFFu << 24);
+    EEPROM_ERASE(VIALRGB_FLASH_ADDR, 256);
+    EEPROM_WRITE(VIALRGB_FLASH_ADDR, buf, 8);
+}
+
+static void vialrgb_flash_load(void)
+{
+    __attribute__((aligned(4))) uint32_t buf[2] = {0};
+    EEPROM_READ(VIALRGB_FLASH_ADDR, buf, 8);
+    if (buf[1] == 0xFFFFFFFF || (buf[1] >> 24) != 0xFF) return;
+    vialrgb_cfg.mode = (uint16_t)(buf[0] & 0xFFFF);
+    vialrgb_cfg.speed = (uint8_t)((buf[0] >> 16) & 0xFF);
+    vialrgb_cfg.hue = (uint8_t)((buf[0] >> 24) & 0xFF);
+    vialrgb_cfg.sat = (uint8_t)(buf[1] & 0xFF);
+    vialrgb_cfg.val = (uint8_t)((buf[1] >> 8) & 0xFF);
+    vialrgb_cfg.enabled = (uint8_t)((buf[1] >> 16) & 0xFF);
+    if (vialrgb_cfg.mode >= VIALRGB_EFFECT_MAX) vialrgb_cfg.mode = VIALRGB_EFFECT_SOLID;
+    vialrgb_active = 1;
+}
+
 uint32_t hsv_to_rgb32(uint8_t h, uint8_t s, uint8_t v)
 {
     uint32_t r, g, b;
@@ -238,6 +267,7 @@ void vialrgb_init(void)
     vialrgb_cfg.enabled = 1;
     vialrgb_active = 0;
     vialrgb_phase = 0;
+    vialrgb_flash_load();
 }
 
 void vialrgb_set_mode(uint16_t mode, uint8_t speed, uint8_t hue, uint8_t sat, uint8_t val)
@@ -251,6 +281,7 @@ void vialrgb_set_mode(uint16_t mode, uint8_t speed, uint8_t hue, uint8_t sat, ui
     vialrgb_cfg.enabled = 1;
     vialrgb_active = 1;
     vialrgb_phase = 0;
+    vialrgb_flash_save();
 }
 
 static uint8_t breathe_curve(uint8_t phase)
