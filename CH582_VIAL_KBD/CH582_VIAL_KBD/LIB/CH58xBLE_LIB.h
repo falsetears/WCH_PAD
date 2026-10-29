@@ -1189,7 +1189,7 @@ extern const uint8_t VER_LIB[];  // LIB version
 #define SMP_PAIRING_FAILED_UNSPECIFIED          0x08 //!< Pairing failed due to an unspecified reason
 #define SMP_PAIRING_FAILED_REPEATED_ATTEMPTS    0x09 //!< Pairing or authentication procedure is disallowed because too little time has elapsed since the last pairing request or security request.
 #define SMP_PAIRING_FAILED_INVALID_PARAMERERS   0x0A //!< The Invalid Parameters error code indicates that the command length is invalid or that a parameter is outside of the specified range.
-#define SMP_PAIRING_FAILED_DHKEY_CHECK_FAILED   0x0B //!< Indicates to the remote device that the DHKey Check value received doesn��t match the one calculated by the local device.
+#define SMP_PAIRING_FAILED_DHKEY_CHECK_FAILED   0x0B //!< Indicates to the remote device that the DHKey Check value received doesn't match the one calculated by the local device.
 #define SMP_PAIRING_FAILED_NUMERIC_COMPARISON   0x0C //!< Indicates that the confirm values in the numeric comparison protocol do not match.
 #define SMP_PAIRING_FAILED_KEY_REJECTED         0x0F //!< Indicates that the device chose not to accept a distributed key.
 
@@ -2937,7 +2937,7 @@ extern void LLE_IRQLibHandler( void );
  * @return  access address
  * the Access Address meets the following requirements:
  * It shall have no more than six consecutive zeros or ones. 
- * It shall not be t he advertising channel packets�� Access Address.
+ * It shall not be t he advertising channel packets' Access Address.
  * It shall not be a sequence that differ s from the advertising channel packets' Access Address by only one bit.
  * It shall not have all four octets equal.
  * It shall have no more  than 24 transitions.
