@@ -1027,12 +1027,16 @@ static uint8_t VIAL_Proxy(const uint8_t *in, uint8_t *out)
     }
     if (in[0] == 0x07) {            /* LIGHTING_SET_VALUE - update local + tunnel */
         if (in[1] == 0x41) {        /* VIALRGB_SET_MODE */
-            local_rgb_mode = (uint16_t)in[2] | ((uint16_t)in[3] << 8);
-            local_rgb_speed = in[4];
-            local_rgb_hue = in[5];
-            local_rgb_sat = in[6];
-            local_rgb_val = in[7];
-            dongle_rgb_save_pending = 1;
+            uint16_t nm = (uint16_t)in[2] | ((uint16_t)in[3] << 8);
+            if (nm != local_rgb_mode || in[4] != local_rgb_speed ||
+                in[5] != local_rgb_hue || in[6] != local_rgb_sat || in[7] != local_rgb_val) {
+                local_rgb_mode = nm;
+                local_rgb_speed = in[4];
+                local_rgb_hue = in[5];
+                local_rgb_sat = in[6];
+                local_rgb_val = in[7];
+                dongle_rgb_save_pending = 1;
+            }
         }
         return 0;   /* tunnel to keyboard */
     }
